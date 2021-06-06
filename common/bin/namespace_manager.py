@@ -20,7 +20,6 @@ import os
 from dateutil.tz import tzutc, tzlocal
 
 from .db_connections.sqlite import SqliteConnection
-from .db_connections.postgres import PostgresConnection
 from .logger import Log
 from .root_folder import aleph_root_folder
 

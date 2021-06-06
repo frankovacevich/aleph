@@ -9,9 +9,6 @@ import json
 import sys
 
 sys.path.append("../..")
-f = open("/home/al/hello.txt", "w+")
-f.write("HELLO")
-f.close()
 
 from common.bin.logger import Log
 from common.bin.namespace_manager import NamespaceManager

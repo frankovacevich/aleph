@@ -18,7 +18,6 @@ from django.urls import path, include
 from django.views.generic import TemplateView
 
 urlpatterns = [
-    path('adminapi/', admin.site.urls),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('docs/', include('docs.urls')),

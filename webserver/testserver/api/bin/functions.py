@@ -8,7 +8,7 @@ import random
 import json
 import sys
 
-sys.path.append("/home/aleph/aleph")
+sys.path.append("../..")
 
 from common.bin.logger import Log
 from common.bin.namespace_manager import NamespaceManager

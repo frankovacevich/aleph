@@ -1,7 +1,1 @@
-{
-	"mongodb_username": "al",
-	"password": "1234",
-
-	"influxdb_username": "al",
-	"password": "0000",
-}
+{}

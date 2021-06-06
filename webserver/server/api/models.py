@@ -3,6 +3,7 @@ from uuid import uuid4
 
 
 class ActivityLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     username = models.CharField(max_length=30)
     date = models.DateTimeField(auto_now_add=True)
     activity = models.CharField(max_length=255)
@@ -13,6 +14,7 @@ class ActivityLog(models.Model):
 
 
 class AccessControl(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     username = models.CharField(max_length=30)
     key = models.CharField(max_length=255)
     read_only = models.BooleanField(default=True)
@@ -22,6 +24,7 @@ class AccessControl(models.Model):
 
 
 class Resource(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     uri = models.CharField(max_length=255)
     key = models.CharField(max_length=255, blank=True)
     name = models.CharField(max_length=50, default="Resource name")
@@ -35,6 +38,7 @@ class Resource(models.Model):
 
 
 class NamespaceExtra(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     key = models.CharField(max_length=255)
     field = models.CharField(max_length=255)
     alias = models.CharField(max_length=255, blank=True)
@@ -46,6 +50,7 @@ class NamespaceExtra(models.Model):
 
 
 class ApiToken(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     username = models.CharField(max_length=30)
     token = models.CharField(max_length=40, default=uuid4)
     last_used = models.DateTimeField(auto_now=True)
