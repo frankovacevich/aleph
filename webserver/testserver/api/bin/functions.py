@@ -7,8 +7,10 @@ import traceback
 import random
 import json
 import sys
+import os
 
-sys.path.append("../..")
+aleph_root_folder = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+sys.path.append(aleph_root_folder)
 
 from common.bin.logger import Log
 from common.bin.namespace_manager import NamespaceManager
