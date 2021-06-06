@@ -1,0 +1,573 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>API &mdash; WebServer  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Admin" href="admin.html" />
+    <link rel="prev" title="Recursos" href="resources.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> WebServer
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basic.html">Acerca del Servidor Web</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resources.html">Recursos</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#authentication">Authentication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#namespace-and-data">Namespace and Data</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#namespace-entries-keys">Namespace Entries/Keys</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#namespace-entry-s-fields">Namespace Entry’s Fields</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data">Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#namespace-extras">Namespace Extras</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publish">Publish</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#access-control">Access Control</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#get-all-rules">Get all rules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#add-rule">Add rule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#remove-rule">Remove rule</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#users">Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#namespace-manager">Namespace Manager</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="admin.html">Admin</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">WebServer</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>API</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/API.md.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="api">
+<h1>API<a class="headerlink" href="#api" title="Permalink to this headline">¶</a></h1>
+<p>The REST API allows you to:</p>
+<ul class="simple">
+<li><p>Access namespace metadata (entries, fields)</p></li>
+<li><p>Get data from the database</p></li>
+<li><p>Edit the namespace extras</p></li>
+<li><p>Edit the access control</p></li>
+<li><p>Handle users’ accounts (add users, delete users, reset passwords).</p></li>
+</ul>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>You will need a user account to use the API.</p>
+</div>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>Depending on how the Web Server was set up, you might have some limit on how many API calls you can make. Contact an admin for more information.</p>
+</div>
+<div class="section" id="authentication">
+<h2>Authentication<a class="headerlink" href="#authentication" title="Permalink to this headline">¶</a></h2>
+<p>You will need a <strong>Token</strong> to perform API calls.</p>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>If you are logged in you do not require a token to make API calls. The WebServer provides you with a sessionid cookie that keeps you logged in for some time.</p>
+</div>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>This is the only endpoint that does not require a token. Other API calls require you to authenticate with your token (unless you are logged in and have your sessionid cookie).</p>
+</div>
+<p>You can request or recall your token using your username and password and making a call on the following endpoint</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">auth</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>username (required)</p></li>
+<li><p>password (required)</p></li>
+</ul>
+<p><strong>Reponse</strong></p>
+<ul class="simple">
+<li><p>200: If the username and password are valid, it returns a JSON object with the token:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;token&quot;</span><span class="p">:</span><span class="o">&lt;</span><span class="n">token</span><span class="o">-</span><span class="n">value</span><span class="o">&gt;</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>400: The request method is not POST or the username and password were not passed as  parameters.</p></li>
+<li><p>403: The username and password are invalid</p></li>
+</ul>
+</div>
+<div class="section" id="namespace-and-data">
+<h2>Namespace and Data<a class="headerlink" href="#namespace-and-data" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="namespace-entries-keys">
+<h3>Namespace Entries/Keys<a class="headerlink" href="#namespace-entries-keys" title="Permalink to this headline">¶</a></h3>
+<p>Get all the namespace entries that your user has access to (as defined by the Access Control):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span><span class="o">/</span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: A JSON object with a list of all the namespace entries.</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;namespace&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;&lt;entry1&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;entry2&gt;&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">]}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>403: The authentication failed</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="namespace-entry-s-fields">
+<h3>Namespace Entry’s Fields<a class="headerlink" href="#namespace-entry-s-fields" title="Permalink to this headline">¶</a></h3>
+<p>Get all the fields in a given namespace entry (including all the namespace extra metadata) with any of the following two endpoints (they’re equivalent):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span><span class="o">/</span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span><span class="o">/&lt;</span><span class="n">key</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span><span class="o">/</span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span><span class="o">/&lt;</span><span class="n">key</span><span class="o">&gt;/</span><span class="n">fields</span>
+</pre></div>
+</div>
+<p><strong>Arguments</strong></p>
+<ul class="simple">
+<li><p>key (required): the namespace key/entry</p></li>
+</ul>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: A JSON object with a list of all the fields in the entry</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;fields&quot;</span><span class="o">=</span><span class="p">[</span>
+  <span class="p">{</span>
+    <span class="s2">&quot;field&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;field-name&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;tooltip&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;namespace-extra-tooltip&gt;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;alias&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;namespace-extra-alias&gt;&quot;</span><span class="p">,</span>
+  <span class="p">},</span>
+  <span class="o">...</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>403: The authentication failed or the user does not have access to the given key.</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="data">
+<h3>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
+<p>Get data from a given namespace key:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span><span class="o">/</span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span><span class="o">/&lt;</span><span class="n">key</span><span class="o">&gt;/</span><span class="n">data</span>
+</pre></div>
+</div>
+<p><strong>Arguments</strong></p>
+<ul class="simple">
+<li><p>key (required): the namespace key/entry</p></li>
+</ul>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+<li><p>since (optional, default=”365”). Specify the beginning for the timeframe of your query. You can pass an integer number for how many days since the present day you want data, or you can pass a full date as YYYY-MM-DD.</p></li>
+<li><p>until (optional, default=”0”). Specify the end for the timeframe of your query. You can pass an integer number for how many days since the present day you want data (0 being the present moment), or you can pass a full date as YYYY-MM-DD.</p></li>
+<li><p>count (optional, default=”1”). Limit the query by how many records you want.</p></li>
+<li><p>fields (optional, default=”*”). Which fields from the namespace entry you want. You can use “*” for all the fields, pass a single field as an string, or pass a list of fields (only available for POST requests).</p></li>
+<li><p>id_ (optional, default=””). Filter your query by id_ (in case the data you want has an “id_” field).</p></li>
+</ul>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>If you don’t set any parameters and use all the default values you will get the last record of the namespace entry.</p>
+</div>
+<div class="warning admonition">
+<p class="admonition-title">CAUTION</p>
+<p>Using integers for <strong>since</strong> and <strong>until</strong> will get records on a 24 hour basis.</p>
+<p>For example, if you perform the query at noon on a wednesday, using since=2 and until=1, you will get data from monday noon to tuesday noon.</p>
+</div>
+<div class="warning admonition">
+<p class="admonition-title">CAUTION</p>
+<p>Using full dates for <strong>since</strong> and <strong>until</strong> will get records only between those dates, from 00:00:00 on the day <em>since</em> to 23:59:59 on the day <em>until</em>.</p>
+<p>If you use the same date for both parameters, you will get data from only that date.</p>
+</div>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: A JSON object with a list of all the namespace entries.</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;&lt;field1&gt;&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;value1&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;field2&gt;&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;value2&gt;&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">]}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>403: The authentication failed or the user does not have access to the given key.</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;error-message&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="namespace-extras">
+<h3>Namespace Extras<a class="headerlink" href="#namespace-extras" title="Permalink to this headline">¶</a></h3>
+<p>To get the extras for a given entry, use the endpoint given above for fields (this will return both fields and the extras).</p>
+<p>You can set namspace extras with the following endpoint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span><span class="o">/&lt;</span><span class="n">key</span><span class="o">&gt;/</span><span class="n">set_extra</span>
+</pre></div>
+</div>
+<p><strong>Arguments</strong></p>
+<ul class="simple">
+<li><p>key (required): the namespace key/entry</p></li>
+</ul>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+<li><p>field (required): the field name you want to set extras to.</p></li>
+<li><p>alias (optional)</p></li>
+<li><p>tooltip (optional)</p></li>
+<li><p>show_on_explorer (optional): set to <em>true</em> or <em>false</em> to show or hide the field on the explorer.</p></li>
+</ul>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>You don’t have to pass all the parameters, only the ones you want to set for the namespace extras for the field.</p>
+</div>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>A user does not need write permissions to set the namespace extras (write permissions are only for publishing).</p>
+</div>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: Ok message</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>400: The request method is not POST or the <em>field</em> parameter was not passed.</p></li>
+<li><p>403: The authentication failed or the user does not have access to the given key.</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="publish">
+<h3>Publish<a class="headerlink" href="#publish" title="Permalink to this headline">¶</a></h3>
+<p>Publish data on the namespace with the following endpoint:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">namespace</span><span class="o">/&lt;</span><span class="n">key</span><span class="o">&gt;/</span><span class="n">publish</span>
+</pre></div>
+</div>
+<div class="note admonition">
+<p class="admonition-title">NOTE</p>
+<p>The data you publish is relayed by the Web Server to the MQTT Broker as an MQTT message.</p>
+</div>
+<div class="note admonition">
+<p class="admonition-title">CAUTION</p>
+<p>You need write access to publish to the namespace (defined by the Access Control)</p>
+</div>
+<p><strong>Arguments</strong></p>
+<ul class="simple">
+<li><p>key (required): the namespace key/entry</p></li>
+</ul>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+<li><p>data (required): a JSON string with the data you want to publish ({field: value, …}).</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: Ok message</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>400: The request method is not POST or the <em>data</em> parameter was not passed.</p></li>
+<li><p>403: The authentication failed or the user does not have write access to the given key.</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="access-control">
+<h2>Access Control<a class="headerlink" href="#access-control" title="Permalink to this headline">¶</a></h2>
+<div class="note admonition">
+<p class="admonition-title">CAUTION</p>
+<p>You need an admin account to use any of the endpoints under access control.</p>
+</div>
+<div class="section" id="get-all-rules">
+<h3>Get all rules<a class="headerlink" href="#get-all-rules" title="Permalink to this headline">¶</a></h3>
+<p>Get all the access control rules</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span><span class="o">/</span><span class="n">GET</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">access_control</span><span class="o">/</span><span class="nb">all</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: Ok message</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;rules&quot;</span><span class="p">:[{</span><span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;key&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="s2">&quot;&lt;user&gt;&quot;</span><span class="p">},</span> <span class="o">...</span><span class="p">]</span> <span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>403: The authentication failed or the user is not an admin</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="add-rule">
+<h3>Add rule<a class="headerlink" href="#add-rule" title="Permalink to this headline">¶</a></h3>
+<p>Add a new rule</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">access_control</span><span class="o">/</span><span class="n">add</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+<li><p>username (required)</p></li>
+<li><p>key (required)</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: If the rule is successfully added, it will return an “ok” message. If the rule already exists, it will return a “rule already exists message.</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;rule added&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;rule already exists&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>400: The request method was not POST or the username and key parameters where not passed</p></li>
+<li><p>403: The authentication failed or the user is not an admin</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="remove-rule">
+<h3>Remove rule<a class="headerlink" href="#remove-rule" title="Permalink to this headline">¶</a></h3>
+<p>Remove a new rule</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">POST</span> <span class="o">/</span><span class="n">api</span><span class="o">/</span><span class="n">access_control</span><span class="o">/</span><span class="n">remove</span>
+</pre></div>
+</div>
+<p><strong>Parameters</strong></p>
+<ul class="simple">
+<li><p>token (required)</p></li>
+<li><p>username (required)</p></li>
+<li><p>key (required)</p></li>
+</ul>
+<p><strong>Response</strong></p>
+<ul class="simple">
+<li><p>200: Ok message</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="s2">&quot;rule removed&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>400: The request method was not POST or the username and key parameters where not passed</p></li>
+<li><p>403: The authentication failed or the user is not an admin</p></li>
+<li><p>500: Unhandled exception:</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="o">&lt;</span><span class="n">error</span><span class="o">-</span><span class="n">message</span><span class="o">&gt;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="users">
+<h2>Users<a class="headerlink" href="#users" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="namespace-manager">
+<h2>Namespace Manager<a class="headerlink" href="#namespace-manager" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="admin.html" class="btn btn-neutral float-right" title="Admin" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="resources.html" class="btn btn-neutral float-left" title="Recursos" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Aleph.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

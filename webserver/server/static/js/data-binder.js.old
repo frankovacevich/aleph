@@ -1,0 +1,107 @@
+/*
+
+*/
+
+function getCookie(name) { let cookieValue = null; if (document.cookie && document.cookie !== '') { const cookies = document.cookie.split(';'); for (let i = 0; i < cookies.length; i++) { const cookie = cookies[i].trim(); if (cookie.substring(0, name.length + 1) === (name + '=')) { cookieValue = decodeURIComponent(cookie.substring(name.length + 1)); break; } } } return cookieValue; }
+const csrftoken = getCookie('csrftoken');
+
+
+// Creates an mqtt client and subscribes to the given topics
+// Example: mqtt_connect("http://127.0.0.1:8083","u","p",["topic"])
+function mqtt_connect(server, username, password, subscription_topics = [], on_message = function(topic, message){ console.log("new mqtt message on " + topic + ": " + message) }){
+    const options = { 
+        clean: true, 
+        connectTimeout: 4000, 
+        clientId: '', 
+        username: username, 
+        password: password
+    };
+
+    // create mqtt client
+    const client = mqtt.connect(server, options);
+
+    // on connect, subscribe to given topics
+    client.on("connect", function(){
+        console.log("mqtt client connected");
+        for(const topic in subscription_topics){
+            client.subscribe(subscription_topics[topic]);
+        }
+        return;
+    });
+
+    // on message, execute function passed
+    client.on("message", function(topic, message){ 
+        on_message(topic, message); 
+    });
+
+    // on disconnect, log
+    client.on("disconnect", function(){ console.log("mqtt client disconnected"); })
+
+    return client;
+
+    // to publish use client.publish(topic, message)
+}
+
+//
+class DataBinder{
+
+    // ties an html object to a data source.
+    // when new data arrives on the connection provided, the
+    // function on_new_data is executed and updates the object
+
+    constructor(mqtt_client){
+        this.topics = [];
+        this.binded = []; //
+        this.mqtt_client = mqtt_client;
+
+        var parent = this;
+
+        mqtt_client.on("message", function(topic, message){
+            parent.process_message(topic, message);
+        });
+
+        this.bind_object = function(object_id, topic, field, on_new_data){
+            // add topic
+            if(!this.topics.includes(topic)){
+                topic = topic.replaceAll("/", ".")
+                this.topics.push(topic);
+                this.mqtt_client.subscribe(topic.replaceAll(".", "/"));
+            }
+
+            // add object
+            this.binded.push({
+                "topic": topic,
+                "field": field,
+                "object_id": object_id,
+                "on_new_data": on_new_data,
+            });
+
+            // download last value
+            var parent = this;
+            $.post("/api/namespace/" + topic + "/data", { csrfmiddlewaretoken: csrftoken, fields: [field] }, function(result){
+                if(result.length > 0){
+                    var r = result[0];
+                    parent.process_message(topic, r);
+                }
+            });
+
+        }
+
+        this.process_message = function(topic, message){
+            topic = topic.replaceAll("/", ".");
+            let msg = message;
+            if(msg.constructor != Object){
+                msg = JSON.parse(message);
+            }
+
+            for(const item in this.binded){
+                let obj = this.binded[item];
+
+                if(obj.topic == topic && obj.field in msg){
+                    obj.on_new_data(obj.object_id, msg[obj.field]);
+                }
+            }
+        }
+    }
+
+}

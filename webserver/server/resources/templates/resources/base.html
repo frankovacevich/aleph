@@ -1,0 +1,26 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+
+  {% include 'head.html' %}
+  <script type="text/javascript" src='{% static "js/data-binder.js" %}'></script>
+
+</head>
+
+<body>
+
+{% if resource_type != 'realtime' %}
+{% include 'navigation.html' %}
+{% endif %}
+
+
+{% block body %}
+{% endblock %}
+  
+</body>
+
+{% block script %}
+{% endblock %}

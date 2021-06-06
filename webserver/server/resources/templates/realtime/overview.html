@@ -1,0 +1,122 @@
+{% extends 'resources/base.html' %}
+{% load static %}
+
+{% block body %}
+
+<div class="grid_layout">
+
+	<div style="grid-area: 1 / 1 / 5 / 13; padding-top:10px" class="gpanel">
+		<div id="gantt" style="height:100%; width: 100%;"></div>
+	</div>
+
+	<div style="grid-area: 5 / 1 / 13 / 7" class="gpanel">
+		<div class="v_layout">
+			<div class="gtitle">Temperatura Tina 1</div>
+			<div id="A1"></div>
+			<div class="gtitle">Temperatura Tina 2</div>
+			<div id="A2"></div>
+			<div class="gtitle">Temperatura Tina 3</div>
+			<div id="A3"></div>
+		</div>
+	</div>
+
+	<div style="grid-area: 5 / 7 / 8 / 9" class="gpanel">
+		<div class="v_layout">
+			<div class="gtitle">Queso seleccionado</div>
+			<div id="B1"></div>
+		</div>
+	</div>
+
+	<div style="grid-area: 5 / 9 / 8 / 11" class="gpanel">
+		<div class="v_layout">
+			<div class="gtitle">Cantidad quesos hoy</div>
+			<div id="B2"></div>
+		</div>
+	</div>
+
+	<div style="grid-area: 5 / 11 / 8 / 13" class="gpanel">
+		<div class="v_layout">
+			<div class="gtitle">Cantidad quesos ayer</div>
+			<div id="B3"></div>
+		</div>
+	</div>
+
+	<div style="grid-area: 8 / 7 / 13 / 13" class="gpanel">
+		<div class="v_layout">
+			<div class="gtitle">Pasos drenoprensa (2hs)</div>
+			<div id="C1"></div>
+		</div>
+	</div>
+
+
+</div>
+
+<!-- =================================================================== -->
+<!-- JAVASCRIPT -->
+<!-- =================================================================== -->
+
+<script>
+
+	SET_COLOR_MODE("dark");
+	COLORS["primary"] = "#53a680";
+
+
+	// =====================================================================
+	// CONTROLS
+	// =====================================================================
+	var gantt = new GanttChart("gantt",{labels:["Drenoprensa","Tina 1","Tina 2","Tina 3","Continua"], time_unit : "m", time_span:120, show_status_on_label:true, left_margin: 120});
+
+	var t_plots_dict = {time_span:600, show_labels: true, y_min : 15, y_max : 50, y_auto : false, smooth: false, fade:true, show_labels: false, limit_high:50, limit_low: 15, value_on_left: true};
+	var A1 = new TimePlot("A1",t_plots_dict);
+	var A2 = new TimePlot("A2",t_plots_dict);
+	var A3 = new TimePlot("A3",t_plots_dict);
+
+	var quesos = {2: "sardo", 3: "holanda", 4: "mozzarella", 5: "barra", 6: "romano", 7: "masa mozz.", 8: "cremoso"};
+
+	var B1 = new TextSimple("B1")
+	var B2 = new TextSimple("B2")
+	var B3 = new TextSimple("B3")
+
+	var C1 = new TimePlot("C1",{time_span:1200, value_on_left: true, show_labels: false, y_min: 0, y_max: 300, y_auto: false, smooth: true });
+
+	// =====================================================================
+	// PROCESS DATA
+	// =====================================================================
+	
+	function process_data(data){
+		if("drenoprensa.seq_dreno_paso_actual" in data){
+			gantt.update({"Drenoprensa":data["drenoprensa.seq_dreno_paso_actual"]>0})
+			C1.update(data["drenoprensa.seq_dreno_paso_actual"]);
+		}
+		if("tinas_sd.paso_actual_tina_1" in data) gantt.update({"Tina 1":data["tinas_sd.paso_actual_tina_1"]>0})
+		if("tinas_sd.paso_actual_tina_2" in data) gantt.update({"Tina 2":data["tinas_sd.paso_actual_tina_2"]>0})
+		if("tinas_sd.paso_actual_tina_3" in data) gantt.update({"Tina 3":data["tinas_sd.paso_actual_tina_3"]>0})
+		if("linea_continua.paso_secuencia_hiladora" in data) gantt.update({"Continua":data["linea_continua.paso_secuencia_hiladora"]>0 && data["linea_continua.paso_secuencia_salador"]>0 && data["linea_continua.paso_secuencia_carrusel"]>0})
+
+		if("tinas_sd.temperatura_tina_1" in data) A1.update(data["tinas_sd.temperatura_tina_1"])
+		if("tinas_sd.temperatura_tina_2" in data) A2.update(data["tinas_sd.temperatura_tina_2"])
+		if("tinas_sd.temperatura_tina_3" in data) A3.update(data["tinas_sd.temperatura_tina_3"])
+
+
+		if("drenoprensa.num_queso_selec" in data) B1.update( quesos[data["drenoprensa.num_queso_selec"]]);
+		if("drenoprensa.num_quesos_hoy" in data) B2.update( data["drenoprensa.num_quesos_hoy"]);
+		if("drenoprensa.num_quesos_ayer" in data) B3.update( data["drenoprensa.num_quesos_ayer"]);
+	}
+
+	// =====================================================================
+	// MQTT CONNECTION
+	// =====================================================================
+	let mqtt_server = "http://" + window.location.hostname + ":8083";
+	mqtt_connect(mqtt_server, "msq","tn8vqmy8qxp63wvp",["process_data/#"], on_message = function(topic, message){
+		try{
+			process_data(JSON.parse(message));
+		} catch(error) {
+			console.log(error);
+		}
+	});
+
+	
+
+</script>
+
+{% endblock %}

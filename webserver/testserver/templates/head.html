@@ -1,0 +1,37 @@
+{% load static %}
+
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- JQuery and bootstrap -->
+<script type="text/javascript" src='{% static "js/jquery-3.5.1.min.js" %}'></script>
+<script type="text/javascript" src='{% static "js/popper.min.js" %}'></script>
+<script type="text/javascript" src='{% static "js/tippy.min.js" %}'></script>
+<script type="text/javascript" src='{% static "js/bootstrap.bundle.min.js" %}'></script>
+<link rel='stylesheet' type='text/css' media='screen' href='{% static "css/bootstrap.min.css" %}'>
+
+<!-- Subtle frame css and js -->
+<link rel='stylesheet' type='text/css' href='{% static "css/subtleframe.min.css" %}'>
+<script type="text/javascript" src='{% static "js/subtleframe.min.js" %}'></script>
+
+<!-- Other javascript libraries -->
+<script type="text/javascript" src='{% static "js/mqtt.min.js" %}'></script>
+<script type="text/javascript" src='{% static "js/plotly-latest.min.js" %}'></script>
+
+<!-- Helper libraries -->
+<script type="text/javascript" src='{% static "js/bootstrap_toasts.js" %}'></script>
+<script type="text/javascript" src='{% static "js/chronometer.js" %}'></script>
+
+<!-- Icon -->
+<link rel="icon" type="image/png" href='{% static "res/logo.png" %}'/>
+
+<!-- Title -->
+<title>
+    {% if title %}
+  	    {{ title }}
+    {% else %}
+        Aleph
+    {% endif %}
+</title>
