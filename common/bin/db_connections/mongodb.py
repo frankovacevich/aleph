@@ -71,7 +71,7 @@ class MongoDBConnection:
                 coll.insert_many(self.buffer)
                 self.buffer.clear()
 
-    def get_from_database(self, key, field, since, until, count):
+    def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
         since = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)
         until = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)

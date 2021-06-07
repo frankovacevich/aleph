@@ -67,7 +67,7 @@ class InfluxDBConnection:
 
         return
 
-    def get_from_database(self, key, field, since, until, count):
+    def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
         if field != "*": field = f'"{field}"'
         query = f'SELECT {field} FROM "{key}" WHERE time >= now() - {str(since)}d AND time <= now() - {str(until)}d ORDER BY time DESC LIMIT {str(count)}'

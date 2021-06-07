@@ -116,7 +116,7 @@ class NamespaceManager:
 
         return
 
-    def get_data(self, key, field="*", since=365, until=0, count=100000):
+    def get_data(self, key, field="*", since=365, until=0, count=100000, ffilter=None):
         """
         returns data from the database (as a list of dict).
         - key (string): is the key in the namespace
@@ -133,7 +133,7 @@ class NamespaceManager:
 
         try:
             key = key.replace("/", ".")
-            data = self.connections["main"].get_from_database(key, field, since, until, count)
+            data = self.connections["main"].get_from_database(key, field, since, until, count, ffilter)
 
             # ADD MORE CODE BETWEEN THE LINES IF YOU NEED TO
             # ----------------------------------------------
@@ -147,7 +147,7 @@ class NamespaceManager:
             self.log.write("Error retrieving data (key=" + key + "). " + str(e) + "\n\n" + error_as_string)
             return []
 
-    def get_data_by_date(self, key, field="*", since='', until='', count=100000):
+    def get_data_by_date(self, key, field="*", since='', until='', count=100000, ffilter=None):
         """
         Returns data from the database (as a list of dict).
         Same as get_data but the parameters since and until are dates expressed as
@@ -165,7 +165,7 @@ class NamespaceManager:
             if since >= until or since > today:
                 return []
 
-            data = self.get_data(key, field=field, since=(today - since).days + 1, until=(today - until).days, count=count)
+            data = self.get_data(key, field=field, since=(today - since).days + 1, until=(today - until).days, count=count, ffilter=ffilter)
             mdata = []
             for d in data:
                 if d["t"].astimezone(tzlocal()) < since: continue

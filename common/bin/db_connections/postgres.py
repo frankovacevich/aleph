@@ -138,7 +138,7 @@ class PostgresConnection:
 
         return result
 
-    def get_from_database(self, key, field, since, until, count):
+    def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
 
         since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%d %H:%M:%S')

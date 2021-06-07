@@ -1,9 +1,4 @@
 """
-- connect()
-- save_to_database(key, data)
-- get_from_database(key, since)
-- get_all_keys()
-- get_fields(key)
 
 """
 import mysql.connector
@@ -153,7 +148,7 @@ class MariaDBConnection:
 
         return result
 
-    def get_from_database(self, key, field, since, until, count):
+    def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
 
         self.connect()

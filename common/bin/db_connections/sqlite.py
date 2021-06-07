@@ -1,9 +1,4 @@
 """
-- connect()
-- save_to_database(key, data)
-- get_from_database(key, since)
-- get_all_keys()
-- get_fields(key)
 
 """
 import sqlite3
@@ -144,7 +139,7 @@ class SqliteConnection:
 
         return result
 
-    def get_from_database(self, key, field, since, until, count):
+    def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
 
         since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%dT%H:%M:%SZ')
