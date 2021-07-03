@@ -63,7 +63,7 @@ def auth_(request):
     """
 
     if request.user.is_authenticated: return True
-    cred = args_(request, ["token"], get=False)
+    cred = args_(request, ["token"])
     if cred is None: return False
     user = token_(token=cred["token"])
     if user is None: return False
@@ -189,7 +189,7 @@ def get_resources_available_to_user(request):
     all_resources = Resource.objects.all()
     allowed_resources = []
     for r in all_resources:
-        if access_(request, r.key):
+        if r.key == "" or access_(request, r.key):
             item = {
                 "key": r.key,
                 "name": r.name,
@@ -292,7 +292,7 @@ def access_control_remove(user, key):
 
 def namespace_get(request):
     NM.connect()
-    namespace = NM.get_namespace()
+    namespace = NM.get_keys()
     NM.close()
     allowed_namespace = []
 
@@ -311,7 +311,7 @@ def namespace_get_fields(key):
 
     result = []
     for field in fields:
-        f = {'path': field}
+        f = {'field': field}
         extra = NamespaceExtra.objects.filter(key=key, field=field)
         if extra:
             extra = extra[0]
@@ -328,24 +328,16 @@ def namespace_retrieve_data(key, fields, since, until, count):
     NM.connect()
     all_data = []
 
+    print("HOWEW", key, fields, since, until, count)
+
     if isinstance(count, str): count = int(count)
+    if isinstance(since, str) and since.isnumeric(): since = int(since)
+    if isinstance(until, str) and until.isnumeric(): until = int(until)
 
-    # since and until are dates
-    if isinstance(since, str) and "-" in since:
-        for field in fields:
-            all_data += NM.get_data_by_date(key, field, since, until, count)
-        NM.close()
-        return all_data
-
-    # since and until are ints
-    else:
-        if isinstance(since, str): since = int(since)
-        if isinstance(until, str): until = int(until)
-
-        for field in fields:
-            all_data += NM.get_data(key, field, since, until, count)
-
-        NM.close()
+    for field in fields:
+        x = NM.get_data(key, field, since, until, count)
+        all_data += x
+    NM.close()
 
     return all_data
 

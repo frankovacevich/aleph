@@ -73,8 +73,8 @@ class MongoDBConnection:
 
     def get_from_database(self, key, field, since, until, count, ffilter):
         if key not in self.get_all_keys(): return []
-        since = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)
-        until = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)
+        # since = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)
+        # until = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)
 
         field_filter = {"t": {"$gte": since, "$lte": until}}
 
@@ -90,7 +90,7 @@ class MongoDBConnection:
             for x in item:
                 if x == "_id":
                     continue
-                if field == "*" or x == "t" or x == "id_":
+                if field == x.replace("[dot]", ".") or field == "*" or x == "t" or x == "id_":
                     nitem[x.replace("[dot]", ".")] = item[x]
 
             result.append(nitem)

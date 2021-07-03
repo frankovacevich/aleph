@@ -1,5 +1,6 @@
 """
 
+
 """
 import mysql.connector
 import datetime
@@ -57,7 +58,7 @@ class MariaDBConnection:
         cur.close()
 
         # 2. Make time a timestamp and id_ a string
-        # dat["t"] = dat["t"].replace("T", " ").replace("Z", "")
+        dat["t"] = dat["t"].replace("T", " ").replace("Z", "")
         if "id_" in dat: dat["id_"] = str(dat["id_"])
 
         # 3. Check if already exists
@@ -100,7 +101,7 @@ class MariaDBConnection:
                 elif isinstance(v, int): query_values += f'`{field}`={self.__int_limits__(v)},'
                 elif isinstance(v, float): query_values += f'`{field}`={self.__float_limits__(v)},'
 
-            if field in columns: continue
+            if field in columns or field == "t": continue
             if isinstance(v, str): query_update_table += f'ADD IF NOT EXISTS `{field}` VARCHAR(255),'
             elif isinstance(v, bool): query_update_table += f'ADD IF NOT EXISTS `{field}` BOOL,'
             elif isinstance(v, int): query_update_table += f'ADD IF NOT EXISTS `{field}` INT,'
@@ -152,8 +153,10 @@ class MariaDBConnection:
         if key not in self.get_all_keys(): return []
 
         self.connect()
-        since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%dT%H:%M:%SZ')
-        until_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # until_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        since_t = since.strftime('%Y-%m-%dT%H:%M:%SZ')
+        until_t = until.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         if field == "*":
             query = f"SELECT {field} FROM `{key}` WHERE t >= '{str(since_t)}' AND t <= '{str(until_t)}' ORDER BY t DESC LIMIT {str(count)}"

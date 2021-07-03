@@ -12,9 +12,17 @@ Read the documentation to learn how to use this connection. You'll need to creat
 a read_function that reads the Tags you want from the PLC.
 """
 
+MODELS = [
+    "Compactlogix",
+    "Controllogix",
+    "Micrologix",
+    "SLC",
+]
+
+
 class PLCABConnection:
 
-    def __ init__(self, model, ip_address, read_function):
+    def __init__(self, model, ip_address, read_function):
         self.model = model
         self.ip_address = ip_address
         self.read_function = read_function
@@ -23,12 +31,6 @@ class PLCABConnection:
         self.connection = None
 
         ##
-        MODELS = [
-            "Compactlogix",
-            "Controllogix",
-            "Micrologix",
-            "SLC",
-        ]
 
         if model not in MODELS: raise Exception("Invalid PLC Model")
 

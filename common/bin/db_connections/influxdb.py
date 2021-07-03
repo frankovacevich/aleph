@@ -1,22 +1,18 @@
 """
-- connect()
-- save_to_database(key, data)
-- get_from_database(key, since)
-- get_all_keys()
-- get_fields(key)
 
 """
 
 from influxdb import InfluxDBClient
 import datetime
 import math
+from dateutil.tz import tzutc
 
 
 class InfluxDBConnection:
 
     def __init__(self, username, password, database, server="localhost", port=8086):
-        self.server = "localhost"
-        self.port = 8086
+        self.server = server
+        self.port = port
         self.username = username
         self.password = password
         self.database = database
@@ -68,10 +64,12 @@ class InfluxDBConnection:
         return
 
     def get_from_database(self, key, field, since, until, count, ffilter):
+        since = (datetime.datetime.now().astimezone(tzutc()) - since).days
+        until = (datetime.datetime.now().astimezone(tzutc()) - until).days
+
         if key not in self.get_all_keys(): return []
         if field != "*": field = f'"{field}"'
         query = f'SELECT {field} FROM "{key}" WHERE time >= now() - {str(since)}d AND time <= now() - {str(until)}d ORDER BY time DESC LIMIT {str(count)}'
-
         q = list(self.client.query(query))
 
         if len(q) == 0: return []

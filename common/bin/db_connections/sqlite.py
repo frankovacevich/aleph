@@ -1,4 +1,9 @@
 """
+- connect()
+- save_to_database(key, data)
+- get_from_database(key, since)
+- get_all_keys()
+- get_fields(key)
 
 """
 import sqlite3
@@ -32,6 +37,8 @@ class SqliteConnection:
         return v
 
     def save_to_database(self, key, data):
+        columns = self.get_fields(key)
+
         self.connect()
         dat = data.copy()
 
@@ -47,7 +54,6 @@ class SqliteConnection:
         if "id_" in dat: dat["id_"] = str(dat["id_"])
 
         # 3. Check if already exists
-        columns = self.get_fields(key)
         already_exists = False
         if "id_" in columns and "id_" in dat:
             query = 'SELECT COUNT(*) FROM `' + key + '` WHERE id_="' + dat["id_"] + '" LIMIT 1'
@@ -87,7 +93,7 @@ class SqliteConnection:
                 elif isinstance(v, int): query_values += '`' + field + '`=' + str(self.__int_limits__(v)) + ','
                 elif isinstance(v, float): query_values += '`' + field + '`=' + str(self.__float_limits__(v)) + ','
 
-            if field in columns: continue
+            if field in columns or field == "t": continue
             if isinstance(v, str): query_update_table += 'ALTER TABLE `' + key + '` ADD `' + field + '` VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE `' + key + '` ADD `' + field + '` BOOL;'
             elif isinstance(v, int): query_update_table += 'ALTER TABLE `' + key + '` ADD `' + field + '` INT;'
@@ -111,18 +117,16 @@ class SqliteConnection:
         cur.execute(query_insert)
         self.client.commit()
         cur.close()
-
         self.close()
         return
 
     def __format_data_for_return__(self, key, data, field="*"):
 
         if field != "*":
-            d[1] = datetime.datetime.strptime(d[1], "%Y-%m-%d %H:%M:%S")
             if "id_" in data:
-                return [{field: d[0], "t": d[1], "id_": d[2]} for d in data]
+                return [{field: d[0], "t": datetime.datetime.strptime(d[1], "%Y-%m-%d %H:%M:%S"), "id_": d[2]} for d in data]
             else:
-                return [{field: d[0], "t": d[1]} for d in data]
+                return [{field: d[0], "t": datetime.datetime.strptime(d[1], "%Y-%m-%d %H:%M:%S")} for d in data]
 
         result = []
         allfields = self.get_fields(key)
@@ -140,10 +144,10 @@ class SqliteConnection:
         return result
 
     def get_from_database(self, key, field, since, until, count, ffilter):
-        if key not in self.get_all_keys(): return []
-
-        since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%dT%H:%M:%SZ')
-        until_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        #since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        #until_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        since_t = since.strftime('%Y-%m-%d %H:%M:%S')
+        until_t = until.strftime('%Y-%m-%d %H:%M:%S')
 
         if field == "*":
             query = "SELECT * FROM `" + key + "` WHERE t >= '" + str(since_t) + "' AND t <= '" + str(until_t) + "' ORDER BY t DESC LIMIT " + str(count)
@@ -152,23 +156,26 @@ class SqliteConnection:
             if "id_" in self.get_fields(): aux = ",t , id_ "
             query = "SELECT " + field + aux + " FROM `" + key + "` WHERE t >= '" + str(since_t) + "' AND t <= '" + str(until_t) + "' AND " + field + " IS NOT NULL ORDER BY t DESC LIMIT " + str(count)
 
+        self.connect()
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
-
+        self.close()
         return self.__format_data_for_return__(key, r, field)
 
     def get_from_database_by_id(self, key, id_):
+        self.connect()
         query = "SELECT * FROM `" + key + "` WHERE id_ = '" + id_ + "' LIMIT 1"
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
-
+        self.close()
         return self.__format_data_for_return__(key, r)
 
     def delete_records(self, key, since, until):
+        self.connect()
         since_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)).strftime('%Y-%m-%d %H:%M:%S')
         until_t = (datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)).strftime('%Y-%m-%d %H:%M:%S')
         query = "DELETE FROM `" + key + "` WHERE t >= '" + str(since_t) + "' AND t < '" + str(until_t) + "'"
@@ -178,9 +185,11 @@ class SqliteConnection:
         q = int(cur.fetchall()[0][0])
         self.client.commit()
         cur.close()
+        self.close()
         return q
 
     def delete_record_by_id(self, key, id_):
+        self.connect()
         query = "DELETE FROM `" + key + "` WHERE id_ = \"" + str(id_) + "\""
         cur = self.client.cursor()
         cur.execute(query)
@@ -188,37 +197,47 @@ class SqliteConnection:
         q = int(cur.fetchall()[0][0])
         self.client.commit()
         cur.close()
+        self.close()
         return q
 
     def get_all_keys(self):
+        self.connect()
         query = "SELECT * FROM sqlite_master where type='table';"
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
+        self.close()
         return [x[1] for x in r if x[1] != 'sqlite_sequence']
 
     def get_fields(self, key):
+        self.connect()
         query = 'PRAGMA table_info(`' + key + '`);'
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
+        self.close()
         return [x[1] for x in r if x != "id"]
 
     def remove_key(self, key):
+        self.connect()
         query = "DROP TABLE IF EXISTS `" + key + "`;"
         cur = self.client.cursor()
         cur.execute(query)
         self.client.commit()
         cur.close()
+        self.close()
         return
 
     def remove_field(self, key, field):
+        self.connect()
         cur = self.client.cursor()
         self.__drop_column__(cur, key, field)
         self.client.commit()
         cur.close()
+        self.close()
+        return
 
     def __drop_column__(self, db, table, column):
         import re
@@ -255,22 +274,27 @@ class SqliteConnection:
         return sql
 
     def rename_key(self, key, new_key):
+        self.connect()
         query = "ALTER TABLE `" + key + "` RENAME TO `" + new_key + "`;"
         cur = self.client.cursor()
         cur.execute(query)
         self.client.commit()
         cur.close()
+        self.close()
         return
 
     def rename_field(self, key, field, new_field):
+        self.connect()
         query = "ALTER TABLE `" + key + "` RENAME COLUMN " + field + " TO " + new_field + ";"
         cur = self.client.cursor()
         cur.execute(query)
         self.client.commit()
         cur.close()
+        self.close()
         return
 
     def count_all_records(self):
+        self.connect()
         keys = self.get_all_keys()
 
         all = {}
@@ -288,13 +312,16 @@ class SqliteConnection:
             all[key] = count
 
         all["__total__"] = total
+        self.close()
         return all
 
     def run_sql_query(self, query, return_as_dict=True):
+        self.connect()
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
+        self.close()
 
         key = ""
         query = query.lower()

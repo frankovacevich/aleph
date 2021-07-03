@@ -90,7 +90,7 @@ class PostgresConnection:
                 elif isinstance(v, int): query_values += '"' + field + '"=' + str(self.__int_limits__(v)) + ','
                 elif isinstance(v, float): query_values += '"' + field + '"=' + str(self.__float_limits__(v)) + ','
 
-            if field in columns: continue
+            if field in columns or field == "t": continue
             if isinstance(v, str): query_update_table += 'ALTER TABLE "' + key + '" ADD "' + field + '" VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE "' + key + '" ADD "' + field + '" BOOL;'
             elif isinstance(v, int): query_update_table += 'ALTER TABLE "' + key + '" ADD "' + field + '" INT;'

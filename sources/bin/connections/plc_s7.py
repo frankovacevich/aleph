@@ -11,12 +11,12 @@ Read the documentation to learn how to use this connection. You'll need to creat
 a read_function that reads the Tags you want from the PLC.
 """
 
+
 class PLCS7Connection:
 
-    def __ init__(self, ip_address, read_function):
+    def __init__(self, ip_address, read_function):
         self.ip_address = ip_address
         self.read_function = read_function
-
         self.connected = False
         self.connection = None
 

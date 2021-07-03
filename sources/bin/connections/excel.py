@@ -23,6 +23,7 @@ class ExcelConnection:
         self.add_rows_only_when_complete = False
         self.max_editing_rows = 100
         self.include_past_records = False
+        self.nullify_error_cells = True  # Changes error values (i.e. '#DIV/0!') to None
 
         # Aux
         self.temp_file = os.path.join(aleph_root_folder, "local", "temp", os.path.basename(self.file))
@@ -30,7 +31,6 @@ class ExcelConnection:
         self.last_row = {}
         self.last_modified = 0
         self.editing_rows = {}
-
 
     def connect(self):
         # Check if the excel file exists
@@ -50,14 +50,16 @@ class ExcelConnection:
             except:
                 pass
 
-
     def do(self):
+        import time
+
         if not self.connected: raise Exception("Not connected")
 
         # Get the last modified timestamp from file
         # If file hasn't changed, do nothing
         last_modified = os.path.getmtime(self.file)
         if not last_modified > self.last_modified: return {}
+
         self.last_modified = last_modified
 
         # Copy the file because if it might be locked if open
@@ -89,13 +91,12 @@ class ExcelConnection:
 
                 # Get last row (we do it this way to avoid problems with workbook[sheet].max_row,
                 # because sometimes it may be greater than what it should be)
-                if sheet not in self.last_row:
-                    r = 1
-                    while workbook[sheet].cell(r, 1).value is not None and workbook[sheet].cell(r, 2).value is not None:
-                        r += 1
-                    self.last_row[sheet] = r
+                r = 1
+                while workbook[sheet].cell(r, 1).value is not None or workbook[sheet].cell(r, 2).value is not None or workbook[sheet].cell(r+1, 1).value is not None or workbook[sheet].cell(r+1, 2).value is not None:
+                    r += 1
+                self.last_row[sheet] = r
 
-                # For each row in sheet
+                # Include past records or add records to editing rows on first run
                 if self.include_past_records or self.watch_complete_file:
                     for r in range(1, last_row):
 
@@ -103,6 +104,7 @@ class ExcelConnection:
                         row_data = []
                         for c in range(1, last_col):
                             cell_value = workbook[sheet].cell(r, c).value
+                            if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
                             row_data.append(cell_value)
 
                         # Add row to data if include past records
@@ -126,6 +128,7 @@ class ExcelConnection:
                     row_data = []
                     for c in range(1, last_col):
                         cell_value = workbook[sheet].cell(r, c).value
+                        if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
                         row_data.append(cell_value)
 
                     # If row length has changed, then a column has been added or removed
@@ -149,6 +152,7 @@ class ExcelConnection:
                     row_data = []
                     for c in range(1, last_col):
                         cell_value = workbook[sheet].cell(r, c).value
+                        if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
                         row_data.append(cell_value)
                     self.editing_rows[sheet][r] = row_data
 
@@ -160,6 +164,7 @@ class ExcelConnection:
                 row_data = []
                 for c in range(1, last_col):
                     cell_value = workbook[sheet].cell(r, c).value
+                    if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
                     row_data.append(cell_value)
 
                 # Add new row to editing rows
