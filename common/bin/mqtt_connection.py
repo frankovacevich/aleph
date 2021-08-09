@@ -20,7 +20,7 @@ class MqttConnection:
         self.default_topic = "test"
         self.resend_on_failure = True
         self.keepalive = 300
-        self.auto_loop = True
+        self.auto_loop = False
 
         self.on_connect = None  # function ()
         self.on_disconnect = None  # function ()
