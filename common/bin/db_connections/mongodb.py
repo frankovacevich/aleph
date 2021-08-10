@@ -1,5 +1,6 @@
 import pymongo
 import time
+import math
 import datetime
 import urllib.parse
 from dateutil.tz import tzutc
@@ -15,7 +16,8 @@ class MongoDBConnection:
         self.database = database
 
         self.buffer_size = 1
-        self.buffer = []
+        self.buffer_count = 0
+        self.buffer = {}
 
         ##
         self.client = None
@@ -29,33 +31,30 @@ class MongoDBConnection:
     def close(self):
         self.client.close()
 
-    def __prepare_data_for_saving__(self, data, result={}, prefix=""):
-        for f in data:
-            if type(data[f]) == dict:
-                self.__prepare_data_for_saving__(data[f], result, prefix + f + ".")
-            else:
-                result[prefix + f] = data[f]
-        return result
+    # ==========================================================================
+    # Operations (save, get, delete)
+    # ==========================================================================
 
-    def __update_fields__(self, key, fields):
-        coll = self.client[self.database]["__db_fields__"]
-        for field in fields:
-            updt = {'key': key, 'field': field}
-            if coll.find_one(updt) is None: coll.insert_one(updt)
-        return
-
-    def save_to_database(self, key, data):
+    def save_data(self, key, data):
+        if key == "metadata": raise Exception("Invalid key")
         coll = self.client[self.database][key]
-        # dat = data.copy()
 
+        # Remove invalid values and update metadata
+        metadata = self.client[self.database]["metadata"]
         dat = {}
         for field in data:
-            if data[field] == float('inf'): continue
-            dat[field.replace(".", "[dot]")] = data[field]
+            v = data[field]
+            if v is None: continue
+            if isinstance(v, float) and (math.isinf(v) or math.isnan(v)): continue
+            dat[field.replace(".", "_dot_")] = v
 
-        self.__update_fields__(key, data)
+            updt = {'key': key, 'field': field, 'alias': field, 'description': ''}
+            metadata.update_one({'key': key, 'field': field}, {'$set': updt}, upsert=True)
+
+        # Parse t
         dat["t"] = datetime.datetime.strptime(dat["t"], '%Y-%m-%dT%H:%M:%SZ')
 
+        # Insert data
         if "id_" in data:
             # coll.update_one({"id_": dat["id_"]}, {"$set": dat}, upsert=True)
             if coll.find_one({"id_": dat["id_"]}) is None:
@@ -66,97 +65,120 @@ class MongoDBConnection:
                 coll.update_one({"id_": dat["id_"]}, {"$set": dat})
 
         else:
-            self.buffer.append(dat)
-            if len(self.buffer) >= self.buffer_size:
-                coll.insert_many(self.buffer)
-                self.buffer.clear()
+            coll.insert_one(dat)
+            #if key not in self.buffer: self.buffer[key] = []
+            #self.buffer[key].append(dat)
+            #self.buffer_count += 1
+            #if self.buffer_count >= self.buffer_size:
+            #    self.buffer_count = 0
+            #    for key in self.buffer:
+            #        if len(self.buffer[key]) == 0: continue
+            #        coll.insert_many(self.buffer[key])
+            #        self.buffer[key].clear()
 
-    def get_from_database(self, key, field, since, until, count, ffilter):
-        if key not in self.get_all_keys(): return []
-        # since = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=since)
-        # until = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=until)
+    def get_data(self, key, field, since, until, count):
+        if key not in self.get_keys(): return []
 
-        field_filter = {"t": {"$gte": since, "$lte": until}}
+        f_filter = {"t": {"$gte": since, "$lte": until}}
 
         if field != "*":
-            field_filter[field.replace(".", "[dot]")] = {"$exists": True}
+            or_filter = []
+            if isinstance(field, str): field = [field]
+            for f in field:
+                or_filter.append({f: {"$exists": True}})
+
+            f_filter = {"$and": [f_filter, {"$or": or_filter}] }
 
         collection = self.client[self.database][key]
-        found = collection.find(field_filter).sort("t", pymongo.DESCENDING).limit(count)
+        found = collection.find(f_filter).sort("t", pymongo.DESCENDING).limit(count)
+
+        #result = [{x.replace("_dot_", "."): y[x] for x in y if x != "_id" and x == "t" ir x == "t_" or x == "id_" or field == "*" or x.replace("_dot_", ".") in field } for y in found]
 
         result = []
         for item in found:
             nitem = {}
             for x in item:
-                if x == "_id":
-                    continue
-                if field == x.replace("[dot]", ".") or field == "*" or x == "t" or x == "id_":
-                    nitem[x.replace("[dot]", ".")] = item[x]
+                if x == "_id": continue
+                if field == "*" or x == "t" or x == "id_" or x.replace("_dot_", ".") in field:
+                    nitem[x.replace("_dot_", ".")] = item[x]
 
             result.append(nitem)
 
         return result
 
-    def get_from_database_by_id(self, key, id_):
-        if key not in self.get_all_keys(): return None
+    def get_data_by_id(self, key, id_):
+        if key not in self.get_keys(): return None
 
         field_filter = {"id_": id_}
         collection = self.client[self.database][key]
 
         found = collection.find_one(field_filter)
-
-        result = {}
-        for x in found:
-            if x == "_id":
-                continue
-            result[x.replace("[dot]", ".")] = found[x]
-
+        result = {x.replace("_dot_", "."): found[x] for x in found if x != "_id"}
         return result
 
-    def delete_records(self, key, since, until):
-        since = datetime.datetime.now() - datetime.timedelta(days=since)
-        until = datetime.datetime.now() - datetime.timedelta(days=until)
-        qfilter = {"t": {"$gte": since, "$lte": until}}
+    def delete_data(self, key, since, until):
+        t_filter = {"t": {"$gte": since, "$lte": until}}
         coll = self.client[self.database][key]
-        q = coll.delete_many(qfilter)
+        q = coll.delete_many(t_filter)
         return q.deleted_count
 
-    def delete_record_by_id(self, key, id_):
+    def delete_data_by_id(self, key, id_):
         coll = self.client[self.database][key]
         q = coll.delete_one({"id_": id_})
         return q.deleted_count
 
-    def get_all_keys(self):
-        collections = [x for x in list(self.client[self.database].list_collection_names()) if x != "__db_fields__"]
+    # ==========================================================================
+    # Get keys and fields
+    # ==========================================================================
+
+    def get_keys(self):
+        collections = [x for x in list(self.client[self.database].list_collection_names()) if x != "metadata"]
         collections.sort()
         return collections
 
     def get_fields(self, key):
-        coll = self.client[self.database]["__db_fields__"]
+        coll = self.client[self.database]["metadata"]
         fields = coll.find({'key': key})
         return [x["field"] for x in fields]
 
     def remove_key(self, key):
         self.client[self.database][key].drop()
-        self.client[self.database]["__db_fields__"].delete_many({'key': key})
+        self.client[self.database]["metadata"].delete_many({'key': key})
         return
 
     def remove_field(self, key, field):
-        self.client[self.database]["__db_fields__"].delete_one({'key': key, 'field': field.replace(".", "[dot]")})
+        self.client[self.database]["metadata"].delete_one({'key': key, 'field': field.replace(".", "_dot_")})
         return
 
     def rename_key(self, key, new_key):
         self.client[self.database][key].rename(new_key)
-        self.client[self.database]["__db_fields__"].update_many({'key': key}, {'$set': {'key': new_key}})
+        self.client[self.database]["metadata"].update_many({'key': key}, {'$set': {'key': new_key}})
         return
 
     def rename_field(self, key, field, new_field):
-        self.client[self.database][key].update_many({}, {'$rename': {f"name.{field.replace('.', '[dot]')}": f"name.{new_field.replace('.', '[dot]')}"}})
-        self.client[self.database]["__db_fields__"].update_one({'key': key, 'field': field}, {"$set": {'field': new_field}})
+        self.client[self.database][key].update_many({}, {'$rename': {"name." + field.replace('.', '_dot_'): "name." + new_field.replace('.', '_dot_')}})
+        self.client[self.database]["metadata"].update_one({'key': key, 'field': field}, {"$set": {'field': new_field}})
         return
 
+    # ==========================================================================
+    # Metadata
+    # ==========================================================================
+
+    def get_metadata(self, key):
+        r = list(self.client[self.database]["metadata"].find({'key': key}))
+        for x in r: del x["_id"]
+        return r
+
+    def set_metadata(self, key, field, alias, description):
+        self.client[self.database]["metadata"].update({'key': key, 'field': field}, {'$set': {'alias': alias, 'description': description}}, upsert=True)
+        return
+
+    # ==========================================================================
+    # Other
+    # ==========================================================================
+
     def count_all_records(self):
-        keys = self.get_all_keys()
+        keys = self.get_keys()
 
         all = {}
         total = 0

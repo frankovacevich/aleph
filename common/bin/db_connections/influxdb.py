@@ -20,7 +20,7 @@ class InfluxDBConnection:
         ##
         self.client = None
         self.data_buffer = []
-        self.buffer_size = 5000
+        self.buffer_size = 15000
         return
 
     # Connect to database
@@ -32,10 +32,11 @@ class InfluxDBConnection:
         self.client.close()
         return
 
-    # Save to database: receives a dict and stores it's contents on the database
-    # key = namespace path
-    # data = a 1-depth dict {field:value}
-    def save_to_database(self, key, data):
+    # ==========================================================================
+    # Operations (save, get, delete)
+    # ==========================================================================
+
+    def save_data(self, key, data):
         try:
             dat = {}
             for x in data:
@@ -63,15 +64,24 @@ class InfluxDBConnection:
 
         return
 
-    def get_from_database(self, key, field, since, until, count, ffilter):
-        since = (datetime.datetime.now().astimezone(tzutc()) - since).days
-        until = (datetime.datetime.now().astimezone(tzutc()) - until).days
+    def get_data(self, key, field, since, until, count):
+        if key not in self.get_keys(): return []
+        since_t = since.strftime('%Y-%m-%d %H:%M:%S')
+        until_t = until.strftime('%Y-%m-%d %H:%M:%S')
 
-        if key not in self.get_all_keys(): return []
-        if field != "*": field = f'"{field}"'
-        query = f'SELECT {field} FROM "{key}" WHERE time >= now() - {str(since)}d AND time <= now() - {str(until)}d ORDER BY time DESC LIMIT {str(count)}'
+        # get field ids
+        if field == "*":
+            fields_str = "*"
+            null_filter = ""
+        else:
+            if isinstance(field, str): field = [field]
+            field_ids = [x for x in field]
+            fields_str = ",".join(field_ids)
+            null_filter = " AND (" + "".join([x + ' IS NOT NULL OR ' for x in field_ids])[0:-4] + ")"
+
+        query = "SELECT " + fields_str + " FROM \"" + key + "\" WHERE time >= '" + since_t + "' AND time <= '" + until_t + "'" + "" + " ORDER BY time DESC LIMIT " + str(count)
+        print(query)
         q = list(self.client.query(query))
-
         if len(q) == 0: return []
 
         result = q[0]
@@ -81,33 +91,38 @@ class InfluxDBConnection:
 
         return result
 
-    def get_from_database_by_id(self, key, id_):
+    def get_data_by_id(self, key, id_):
         # should not be implemented on influx since update queries are not optimized
         # use another db engine to store id'd data
-        return None
+        raise Exception("Invalid method")
 
-    def delete_records(self, key, since, until):
-        query = f'DELETE FROM "{key}" WHERE time >= now() - {str(since)}d AND time <= now() - {str(until)}d'
+    def delete_data(self, key, since, until):
+        since_t = since.strftime('%Y-%m-%d %H:%M:%S')
+        until_t = until.strftime('%Y-%m-%d %H:%M:%S')
+        query = "DELETE FROM \"" + key + "\" WHERE time >= '" + str(since_t) + "' AND time <= '" + str(until_t) + "'"
+
         q = list(self.client.query(query))
         return q
 
-    def delete_record_by_id(self, key, id_):
+    def delete_data_by_id(self, key, id_):
         # should not be implemented on influx since update queries are not optimized
         # use another db engine to store id'd data
-        return None
+        raise Exception("Invalid method")
 
-    def get_all_keys(self):
-        query = f"SHOW MEASUREMENTS ON {self.database}"
+    # ==========================================================================
+    # Get keys and fields
+    # ==========================================================================
+
+    def get_keys(self):
+        query = "SHOW MEASUREMENTS ON " + self.database
         q = self.client.query(query)
         if len(q) == 0: return []
-
         return [x["name"] for x in list(q)[0]]
 
     def get_fields(self, key):
-        query = f'SHOW FIELD KEYS ON {self.database} FROM "{key}"'
+        query = 'SHOW FIELD KEYS ON ' + self.database + ' FROM "' + key + '"'
         q = self.client.query(query)
         if len(q) == 0: return []
-
         return [x["fieldKey"] for x in list(q)[0]]
 
     def remove_key(self, key):
@@ -115,9 +130,7 @@ class InfluxDBConnection:
         return
 
     def remove_field(self, key, field):
-        # Not implemented
-        raise Exception("Not implemented")
-        return
+        raise Exception("Invalid method")
 
     def rename_key(self, key, new_key):
         query = f'SELECT * INTO "{new_key}" FROM "{key}"'
@@ -127,9 +140,22 @@ class InfluxDBConnection:
         return
 
     def rename_field(self, key, field, new_field):
-        # Not implemented
-        raise Exception("Not implemented")
-        return
+        raise Exception("Invalid method")
+
+
+    # ==========================================================================
+    # Metadata
+    # ==========================================================================
+
+    def get_metadata(self, key):
+        raise Exception("Invalid method")
+
+    def set_metadata(self, key, field, alias, description):
+        raise Exception("Invalid method")
+
+    # ==========================================================================
+    # Other
+    # ==========================================================================
 
     def count_all_records(self):
         keys = self.get_all_keys()
@@ -137,7 +163,7 @@ class InfluxDBConnection:
         all = {}
         total = 0
         for key in keys:
-            query = f'SELECT COUNT(t) FROM "{key}"'
+            query = 'SELECT COUNT(t) FROM "' + key + '"'
             q = self.client.query(query)
             count = list(q)[0][0]["count"]
             total += count
