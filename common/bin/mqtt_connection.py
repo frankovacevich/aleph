@@ -20,7 +20,6 @@ class MqttConnection:
         self.default_topic = "test"
         self.resend_on_failure = True
         self.keepalive = 300
-        self.auto_loop = False
 
         self.on_connect = None  # function ()
         self.on_disconnect = None  # function ()
@@ -28,6 +27,7 @@ class MqttConnection:
 
         ##
         self.connected = False
+        self.auto_loop = False
         self.mqtt_client = mqtt.Client(self.client_id)
         self.failure_buffer = []
         self.last_published_message = 0
@@ -130,12 +130,9 @@ class MqttConnection:
     def loop(self):
         self.mqtt_client.loop()
 
-    def loop_start(self):
+    def loop_on_background(self):
         self.mqtt_client.loop_start()
-
-    def loop_stop(self):
-        self.mqtt_client.loop_stop()
+        self.auto_loop = True
 
     def loop_forever(self):
-        self.auto_loop = False
         self.mqtt_client.loop_forever()
