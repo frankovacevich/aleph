@@ -7,12 +7,14 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Acerca del Servidor Web &mdash; WebServer  documentation</title>
+  <title>About the Web Server &mdash; WebServer  documentation</title>
   
 
   
   <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
 
   
   
@@ -29,6 +31,7 @@
   
     
       <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
         <script src="_static/doctools.js"></script>
@@ -38,7 +41,7 @@
     
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Recursos" href="resources.html" />
+    <link rel="next" title="Resources" href="resources.html" />
     <link rel="prev" title="Welcome to WebServer’s documentation!" href="index.html" /> 
 </head>
 
@@ -84,25 +87,16 @@
               
             
             
-              <p class="caption"><span class="caption-text">Contents:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Acerca del Servidor Web</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#el-espacio-de-nombres-namespace">El espacio de nombres (namespace)</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#acerca-del-espacio-de-nombres">Acerca del espacio de nombres</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#namespace-extras">Namespace extras</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">About the Web Server</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#the-namespace">The Namespace</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#users">Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#access-control">Access control</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#usuarios">Usuarios</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#tipos-de-usuarios">Tipos de usuarios</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#agregar-modificar-o-eliminar-un-usuario">Agregar, modificar o eliminar un usuario</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#contenido">Contenido</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="resources.html">Recursos</a></li>
+<li class="toctree-l1"><a class="reference internal" href="resources.html">Resources</a></li>
 <li class="toctree-l1"><a class="reference internal" href="API.html">API</a></li>
-<li class="toctree-l1"><a class="reference internal" href="admin.html">Admin</a></li>
 </ul>
 
             
@@ -151,7 +145,7 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Acerca del Servidor Web</li>
+      <li>About the Web Server</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -170,79 +164,29 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="acerca-del-servidor-web">
-<h1>Acerca del Servidor Web<a class="headerlink" href="#acerca-del-servidor-web" title="Permalink to this headline">¶</a></h1>
-<p>El Servidor Web es la interfaz principal entre los usuarios y Aleph, el sistema de recolección de datos. Desde la Web los usuarios pueden ver datos en tiempo real, obtener registros de las bases de datos, visualizar los datos en forma rápida, generar visualizaciones complejas, crear reportes para imprimir o descargar, modificar y generar nuevos datos desde aplicaciones web, entre varias otras posibilidades.</p>
-<div class="section" id="el-espacio-de-nombres-namespace">
-<h2>El espacio de nombres (namespace)<a class="headerlink" href="#el-espacio-de-nombres-namespace" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="acerca-del-espacio-de-nombres">
-<h3>Acerca del espacio de nombres<a class="headerlink" href="#acerca-del-espacio-de-nombres" title="Permalink to this headline">¶</a></h3>
-<p>Aleph estructura los datos dentro de un espacio de nombres o <em>namespace</em>. Las distintas <em>entradas</em> del espacio de nombres están identificadas jerárquicamente, como si fueran carpetas en un explorador.</p>
-<p>Por ejemplo, en la entrada tonutti.planta.produccion.sala_duros.tinas.plc se encuentran los datos correspondientes a ese equipo. Cada nivel en el espacio de nombres se separa con un punto “.”, y no se utilizan mayúsculas o espacios.</p>
-<p>Una entrada en el espacio de nombres contiene varios campos y varios registros.</p>
-<div class="note admonition">
-<p class="admonition-title">NOTA</p>
-<p>El espacio de nombres es análogo a una base de datos ordenada jerárquicamente. Las entradas son tablas, los campos las columnas y los registros las filas.</p>
+  <div class="tex2jax_ignore mathjax_ignore section" id="about-the-web-server">
+<h1>About the Web Server<a class="headerlink" href="#about-the-web-server" title="Permalink to this headline">¶</a></h1>
+<p>This is the Web Server documentation. This documentation can be edited to suit your application’s usage.</p>
+<p>The Web Server is the interface between users and the data. From the web interface, users can view the data in real time, query the databases, visualize the data with quick or complex views, generate reports for printing or downloading, modify and create new information, etc.</p>
+<div class="section" id="the-namespace">
+<h2>The Namespace<a class="headerlink" href="#the-namespace" title="Permalink to this headline">¶</a></h2>
+<p>Aleph structures data within a namespace. The namespace is a hierarchical structure similar to folders in a file system. The namespace contains keys or entries identified by a name that must not contain capital letters or spaces. The levels of the namespace are separated by dots (.).</p>
+<p>Each key of the namespace contains data (records) consisting of multiple fields (columns).</p>
+<p>The namespace also stores metadata about each field in each key, like an alias name and a brief description.</p>
 </div>
-<div class="note admonition">
-<p class="admonition-title">NOTA</p>
-<p>Cada registro no tiene que contener todos los campos necesariamente.</p>
-</div>
-<div class="note admonition">
-<p class="admonition-title">NOTA</p>
-<p>El Explorador (/explorer) permite visualizar el espacio de los nombres y los datos en cada entrada.</p>
-</div>
-</div>
-<div class="section" id="namespace-extras">
-<h3>Namespace extras<a class="headerlink" href="#namespace-extras" title="Permalink to this headline">¶</a></h3>
-<p>Para facilitar la visualización en el explorador, se pueden modificar los nombres de los campos y agregar mensajes de ayuda (<em>tooltips</em>). Esto se puede hacer desde el menú Más &gt; Namespace Extras en el explorador, habiendo antes seleccionado la entrada y el campo a modificar. Se pueden utilizar puntos “.” para ordenar los campos jerárquicamente igual que en el espacio de nombres.</p>
-<div class="warning admonition">
-<p class="admonition-title">CUIDADO</p>
-<p>Modificar el Namespace Extra no altera en absoluto la base de datos de Aleph o el espacio de nombres. Las modificaciones en Namespace Extras sólo son visibles en el explorador, pero los nombres de los campos siguen siendo los originales.</p>
-</div>
-</div>
-</div>
-<div class="section" id="usuarios">
-<h2>Usuarios<a class="headerlink" href="#usuarios" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="tipos-de-usuarios">
-<h3>Tipos de usuarios<a class="headerlink" href="#tipos-de-usuarios" title="Permalink to this headline">¶</a></h3>
-<p>Distintos tipos de usuarios pueden interactuar con el servidor web:</p>
+<div class="section" id="users">
+<h2>Users<a class="headerlink" href="#users" title="Permalink to this headline">¶</a></h2>
+<p>There are three types of users:</p>
 <ul class="simple">
-<li><p><em>Admins</em>, que pueden modificar la configuración y los usuarios en el servidor</p></li>
-<li><p><em>Superusuarios</em>, que pueden acceder a todo el espacio de nombres y ver datos en tiempo real (se conectan directamente al WebSocket del Servidor MQTT)</p></li>
-<li><p>Usuarios comunes, que pueden acceder sólo a una parte del espacio de nombres (configurado por un <em>admin</em>) y no pueden ver datos en tiempo real.</p></li>
+<li><p>Admins, that can access the admin console and edit other user’s info</p></li>
+<li><p>Superusers, that have access to all the resources in the web server</p></li>
+<li><p>Normal users</p></li>
 </ul>
+<p>In case a superuser or normal user loses their password, they should contact an admin and request a password reset.</p>
 </div>
-<div class="section" id="agregar-modificar-o-eliminar-un-usuario">
-<h3>Agregar, modificar o eliminar un usuario<a class="headerlink" href="#agregar-modificar-o-eliminar-un-usuario" title="Permalink to this headline">¶</a></h3>
-<p>Sólo los admins pueden agregar, modificar o eliminar un usuario desde la interfaz de administrador (/admin).</p>
-<div class="warning admonition">
-<p class="admonition-title">RECUPERAR UNA CONTRASEÑA</p>
-<p>En caso de que un usuario olvide una contraseña, ésta sólo puede ser restablecida por un administrador.</p>
-</div>
-</div>
-</div>
-<div class="section" id="contenido">
-<h2>Contenido<a class="headerlink" href="#contenido" title="Permalink to this headline">¶</a></h2>
-<p>El Servidor Web contiene tres tipos principales de recursos:</p>
-<ul class="simple">
-<li><p><em>Dashboards</em>. Pantallas interactivas para visualizar datos.</p></li>
-<li><p><em>Reportes</em>. Otra forma de visualizar datos, que permite imprimirlos fácilmente.</p></li>
-<li><p><em>Archivos</em>. Generados en forma dinámica, permiten obtener los datos directamente en CSV, XLS u otro formato.</p></li>
-</ul>
-<p>Además el servidor cuanta con:</p>
-<ul class="simple">
-<li><p><em>Explorador</em>. Permite visualizar los datos rápidamente.</p></li>
-<li><p><em>API</em>. Permite obtener datos, modificar el namespace, entre otros.</p></li>
-</ul>
-<div class="important admonition">
-<p class="admonition-title">NOTA</p>
-<p>Todos los recursos y links relevantes están disponibles en la página principal que ve cada usuario luego de iniciar sesión.</p>
-</div>
-<div class="warning admonition">
-<p class="admonition-title">AVISO</p>
-<p>Cada recurso está relacionado con una entrada en el espacio de los nombres. Sólo se puede</p>
-</div>
+<div class="section" id="access-control">
+<h2>Access control<a class="headerlink" href="#access-control" title="Permalink to this headline">¶</a></h2>
+<p>The way resources are accessed on the web server is tied together to the namespace structure. Admins can set the rules to allow different users to view and modify different namespace keys. At the same time, each resource is associated with a namespace key. This way, users have access to different data and resources within the WebServer.</p>
 </div>
 </div>
 
@@ -252,7 +196,7 @@
           </div>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-        <a href="resources.html" class="btn btn-neutral float-right" title="Recursos" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="resources.html" class="btn btn-neutral float-right" title="Resources" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
         <a href="index.html" class="btn btn-neutral float-left" title="Welcome to WebServer’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 

@@ -13,7 +13,6 @@ Welcome to WebServer's documentation!
    basic
    resources
    API
-   admin
 
 Indices and tables
 ==================

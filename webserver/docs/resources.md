@@ -1,7 +1,3 @@
-# Recursos
+# Resources
 
-## Dashboards
-
-## Reportes
-
-## Archivos
+You can include here a short tutorial for your users.
