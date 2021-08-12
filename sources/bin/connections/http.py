@@ -10,7 +10,7 @@ from request.exceptions import Timeout
 
 class HttpConnection:
 
-    def __ init__(self, endpoint, method, parameters, read_function):
+    def __init__(self, endpoint, method, parameters, read_function):
         self.endpoint = endpoint
         self.method = method.upper()
         self.parameters = parameters
@@ -22,7 +22,7 @@ class HttpConnection:
     def connect(self):
         try:
             requests.get(endpoint, timeout=5)
-            self.conncted = True
+            self.connected = True
         except:
             self.connected = False
             raise

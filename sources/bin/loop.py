@@ -34,7 +34,7 @@ class Loop:
 
         # Start loop thread for the mqtt client
         self.mqtt_connection.connect()
-        self.mqtt_connection.loop_start()
+        self.mqtt_connection.loop_on_background()
 
         # Keep the time an error is display to space out the messages
         # so that we do not flood the user's log
@@ -52,8 +52,6 @@ class Loop:
                     self.mqtt_connection.loop()
                 if not self.mqtt_connection.connected:
                     r = self.mqtt_connection.reconnect()
-                    # if r == 0:
-                    #     self.log.write("Reconnected to mqtt server")
 
             except Exception as e:
                 if time.time() - __last_errors__["mqtt_conn"] > 3600:
