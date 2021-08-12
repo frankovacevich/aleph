@@ -294,6 +294,7 @@ def namespace_get(request):
     NM.connect()
     namespace = NM.get_keys()
     NM.close()
+    if namespace is None: return []
     allowed_namespace = []
 
     for key in namespace:
@@ -327,8 +328,6 @@ def namespace_get_fields(key):
 def namespace_retrieve_data(key, fields, since, until, count):
     NM.connect()
     all_data = []
-
-    print("HOWEW", key, fields, since, until, count)
 
     if isinstance(count, str): count = int(count)
     if isinstance(since, str) and since.isnumeric(): since = int(since)

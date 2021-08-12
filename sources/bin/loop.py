@@ -83,10 +83,12 @@ class Loop:
 
                 if isinstance(many_values, list):
                     for v in many_values:
-                        v["t"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(0.5 * (t0 + t1)))
+                        if "t" not in v:
+                            v["t"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(0.5 * (t0 + t1)))
                         v["dt"] = t1 - t0
                 elif isinstance(many_values, dict):
-                    many_values["t"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(0.5 * (t0 + t1)))
+                    if "t" not in many_values:
+                        many_values["t"] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(0.5 * (t0 + t1)))
                     many_values["dt"] = t1 - t0
                 elif many_values is None:
                     continue
