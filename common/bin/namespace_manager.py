@@ -31,11 +31,7 @@ from .db_connections.influxdb import InfluxDBConnection
 class NamespaceManager:
 
     def __init__(self):
-        #self.conn = SqliteConnection(os.path.join(aleph_root_folder, "local", "backup", "msql.db"))
-        self.conn = MariaDBConnection("admin", "password", "main")
-        #self.conn = MongoDBConnection("al", "password", "main")
-        #self.conn = PostgresConnection("admin", "password", "main")
-        #self.conn = InfluxDBConnection("admin", "password", "main")
+        self.conn = SqliteConnection(os.path.join(aleph_root_folder, "local", "backup", "msql.db"))
         self.log = Log("namespace_manager.log")
 
     # ==========================================================================
