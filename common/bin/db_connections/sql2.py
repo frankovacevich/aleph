@@ -58,8 +58,8 @@ class SQLConnection:
 
         # Check if id_ already exists
         already_exists = False
-        if "id_" in data and "id_" in fmap:
-            sql = "SELECT COUNT(id_) FROM " + key + " WHERE id_='" + data["id_"] + "' LIMIT 1"
+        if "id_" in dat and "id_" in fmap:
+            sql = "SELECT COUNT(id_) FROM " + key + " WHERE id_='" + dat["id_"] + "' LIMIT 1"
             cur.execute(sql)
             r = cur.fetchall()
             already_exists = r[0][0] > 0
@@ -331,7 +331,7 @@ class SQLConnection:
         r = cur.fetchall()
 
         if len(return_fields) > 0:
-            return self.__format_data_for_return__(r, fields)
+            return self.__format_data_for_return__(r, return_fields)
             cur.close()
         return r
 
