@@ -23,32 +23,6 @@ class AccessControl(models.Model):
         return self.username + ":" + self.key
 
 
-class Resource(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    uri = models.CharField(max_length=255)
-    key = models.CharField(max_length=255, blank=True)
-    name = models.CharField(max_length=50, default="Resource name")
-    group = models.CharField(max_length=50, default="General")
-    icon = models.CharField(max_length=100, default="icon-aleph")
-    description = models.CharField(max_length=1000, default="", blank=True)
-    params = models.CharField(max_length=1000, default='{"date": "Date (YYYY-MM-DD)"}', blank=True)
-
-    def __str__(self):
-        return self.uri + ":" + self.key
-
-
-class NamespaceExtra(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    key = models.CharField(max_length=255)
-    field = models.CharField(max_length=255)
-    alias = models.CharField(max_length=255, blank=True)
-    tooltip = models.CharField(max_length=1000, blank=True)
-    show_on_explorer = models.BooleanField(default=True)
-
-    def __str__(self):
-        return self.field + " : " + self.alias
-
-
 class ApiToken(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     username = models.CharField(max_length=30)

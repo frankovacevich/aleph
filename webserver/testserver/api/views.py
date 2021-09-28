@@ -1,6 +1,6 @@
 from django.http import HttpResponseForbidden, HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
-from .bin import functions as fn
+from bin import functions as fn
 
 
 # /auth

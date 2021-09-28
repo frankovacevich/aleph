@@ -1,6 +1,6 @@
 from django.http import HttpResponseForbidden, HttpResponseBadRequest, HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
-from .bin import functions as fn
+from bin import functions as fn
 
 
 # /namespace/<key>/set_extra
@@ -49,5 +49,3 @@ def namespace_remove_field(request, key, field):
     if request.method != "POST": return HttpResponseBadRequest()
     if not fn.auth_(request): return HttpResponseForbidden()
     if not fn.access_admin_(request): return HttpResponseForbidden()
-
-
