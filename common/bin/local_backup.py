@@ -18,12 +18,13 @@ import os
 from .logger import Log
 from .root_folder import aleph_root_folder
 from .db_connections import functions as fn
+from .db_connections.sqlite import SqliteConnection
 
 
 class LocalBackup:
 
     def __init__(self):
-        self.conn = self.conn = SqliteConnection(os.path.join(aleph_root_folder, "local", "backup", "msql.db"))
+        self.conn = self.conn = SqliteConnection(os.path.join(aleph_root_folder, "local", "backup", "backup.db"))
         self.log = Log("local_backup.log")
         self.conn.connect()
 
