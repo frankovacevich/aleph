@@ -6,11 +6,13 @@ def get_nm():
     NM.connect()
     return NM
 
+
 def get_lb():
     from .local_backup import LocalBackup
     LB = LocalBackup()
     LB.connect()
     return LB
+
 
 def get_mqtt():
     from common.lib.custom_mqtt_connection import custom_mqtt_connection
@@ -18,15 +20,17 @@ def get_mqtt():
     mqttconn = custom_mqtt_connection("aleph_" + str(random.randint(0, 9999)))
     return mqttconn
 
+
 # ==============================================================================
 # MQTT
 # ==============================================================================
+
 def dprint(txt):
     print(txt)
 
 
 # Publish
-def mqtt_publish():
+def mqtt_publish(data, key):
     import time
     import json
 
@@ -41,7 +45,7 @@ def mqtt_publish():
 
 
 # Listen
-def mqtt_listen():
+def mqtt_listen(key):
     import time
     import random
     import json
@@ -54,6 +58,7 @@ def mqtt_listen():
     time.sleep(2)
     if not mqttconn.connected: raise Exception("Could not connect to MQTT")
     mqttconn.loop_forever()
+
 
 # ==============================================================================
 # Namespace / Localbackup
@@ -99,7 +104,7 @@ def namespace_rename(key, new_key, lb=False):
 
 
 # Remove key
-def namespace_remove(namespace_manager, key, lb=False):
+def namespace_remove(key, lb=False):
     namespace_manager = get_lb() if lb else get_nm()
 
     if key not in namespace_manager.get_keys():
@@ -122,6 +127,7 @@ def namespace_delete_by_id(namespace_manager, key, id_, lb=False):
     x = namespace_manager.delete_data_by_id(key, id_)
     print("Deleted", x, "records")
 
+
 # Deleta data since
 def namespace_delete_since(namespace_manager, key, since, until, lb=False):
     namespace_manager = get_lb() if lb else get_nm()
@@ -134,16 +140,18 @@ def namespace_delete_since(namespace_manager, key, since, until, lb=False):
     x = namespace_manager.delete_data(key, s, u)
     print("Deleted", x, "records")
 
+
 # ==============================================================================
 # Backup
 # ==============================================================================
 
-def defalt(obj):
+def __default__(obj):
     import datetime
     if isinstance(obj, datetime.datetime): return obj.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+
 # Backup save
-def backup_save(since=365, until=0, file_location=""):
+def backup_save(since=365, until=0):
     import lzma
     import json
     import os
@@ -159,8 +167,7 @@ def backup_save(since=365, until=0, file_location=""):
     until = fn.__parse_date__(until, True)
 
     file_name = datetime.datetime.today().strftime("%Y%m%d") + ".backup"
-    if file_location == "": file_name = os.path.join(aleph_root_folder, "local", "backup", file_name)
-    else: file_name = os.path.join(file_location, file_name)
+    file_name = os.path.join(aleph_root_folder, "local", "backup", file_name)
 
     print("Saving backup ...")
     backup_file = lzma.open(file_name, "wb")
@@ -179,7 +186,7 @@ def backup_save(since=365, until=0, file_location=""):
             if len(data) > 0:
                 total += len(data)
                 #pickle.dump({key: data}, backup_file)
-                backup_file.write((json.dumps({key: data}, default=defalt) + "\n").encode())
+                backup_file.write((json.dumps({key: data}, default=__default__) + "\n").encode())
 
             s = s + datetime.timedelta(days=1)
 
@@ -190,7 +197,7 @@ def backup_save(since=365, until=0, file_location=""):
 
 
 # Backup restore
-def backup_restore(file_name="backup.pickle"):
+def backup_restore(file_name):
     import lzma
     import time
     import os
@@ -199,8 +206,8 @@ def backup_restore(file_name="backup.pickle"):
     from .root_folder import aleph_root_folder
 
     nm = get_nm()
-
     t0 = time.time()
+    file_name = os.path.join(aleph_root_folder, "local", "backup", file_name)
     print("Restoring backup from " + file_name)
 
     count = 0
@@ -209,12 +216,12 @@ def backup_restore(file_name="backup.pickle"):
             data = json.loads(chunk.decode()[:-1])
             for key in data:
                 print("Restoring", len(data[key]), "records at", key, "between", data[key][-1]["t"], "and", data[key][0]["t"])
-                
+
                 for record in data[key]:
                     count += len(record)
                     nm.save_data(key, record)
 
-                print(time.time()-t0, count)
+                print("Elapsed time:", time.time()-t0, "| Records restored:", count)
 
 
         """
@@ -268,3 +275,126 @@ def resend(key, since, until):
         time.sleep(5)
 
     print("Done")
+
+
+# ==============================================================================
+# Main
+# ==============================================================================
+
+man = """
+
+Hi! Welcome to the Aleph CLI tool. Here's a summary of all possible commands:
+
+- Aleph commands: use them to run programs, install services and check the status
+- Mqtt commands: use them for a quick pub/sub client
+- Namespace commands: use them to manipulate data from the namespace quickly
+- Localbackup commands: use them to query and restore data from a local backup
+
+Aleph Commands
+==============
+Syntax:
+python3 aleph.py <cmd>
+
+Mqtt Commands
+=============
+Syntax
+python3 aleph.py mqtt <cmd>
+
+Commands (cmd):
+- publish <key> <data>      Publish the data (as json string) on the given topic (key)
+- listen <key>              Listen on the given topic (key)
+
+Namespace Commands
+==================
+Syntax:
+python3 aleph.py namespace <cmd>
+
+Commands (cmd):
+- * no command *            Show all keys in the namespace
+- peek <key>                Show the newest records for the given key
+- rename <key> <new_name>   Rename a key
+- remove <key>              Remove a key and all it's records
+- delete <key> [-i id_] [-s since] [-u until] Delete records by date or id
+
+Localbackup Commands
+====================
+
+Syntax:
+python3 aleph.py localbackup <cmd>
+
+- * no command *            Show all keys in the namespace
+- peek <key>                Show the newest records for the given key
+- rename <key> <new_name>   Rename a key
+- remove <key>              Remove a key and all it's records
+- delete <key> [-i id_] [-s since] [-u until] Delete records by date or id
+- restore <key> [-s since] [-u until] Resend data with mqtt
+
+"""
+
+# MAIN
+
+import sys
+from optparse import OptionParser
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 1: cmd = "man"
+    else: cmd = sys.argv[1]
+
+    if cmd == "namespace" or cmd == "localbackup":
+        cmd2 = ""
+        if len(sys.argv) > 2: cmd2 = sys.argv[2]
+
+        if cmd2 == "": namespace_keys(cmd == "localbackup")
+        elif cmd2 == "peek": namespace_peek(key=sys.argv[3], lb=cmd == "localbackup")
+        elif cmd2 == "rename": namespace_rename(key=sys.argv[3], new_key=sys.argv[4], lb=cmd == "localbackup")
+        elif cmd2 == "remove": namespace_remove(key=sys.argv[3], lb=cmd == "localbackup")
+
+        elif cmd2 == "backup" and cmd == "namespace":
+            parser = OptionParser()
+            parser.add_option("-s", "--since", dest="since", default="1")
+            parser.add_option("-u", "--until", dest="until", default="0")
+            options, args = parser.parse_args()
+            options = vars(options)
+            backup_save(since=options["since"], until=options["until"])
+
+        elif cmd2 == "restore" and cmd == "namespace":
+            parser = OptionParser()
+            parser.add_option("-f", "--file", dest="file", default="backup.backup")
+            options, args = parser.parse_args()
+            options = vars(options)
+            backup_restore(options["file"])
+
+        """
+        elif cmd2 == "delete":
+            parser = OptionParser()
+            parser.add_option("-s", "--since", dest="since", default="1")
+            parser.add_option("-u", "--until", dest="until", default="0")
+            parser.add_option("-i", "--id_", dest="id_", default="")
+            options, args = parser.parse_args()
+            options = vars(options)
+            if options["id_"] != "":
+                namespace_delete_by_id(manager, key=sys.argv[3], id_=options["id_"])
+            else:
+                namespace_delete_since(manager, key=sys.argv[3], since=options["since"], until=options["until"])
+        elif cmd2 == "restore" and cmd == "localbackup":
+            parser = OptionParser()
+            parser.add_option("-s", "--since", dest="since", default="1")
+            parser.add_option("-u", "--until", dest="until", default="0")
+            options, args = parser.parse_args()
+            options = vars(options)
+            restore(manager, key=sys.argv[3], since=options["since"], until=options["until"])
+        elif cmd2 == "restore" and cmd == "namespace":
+            backup_restore(manager)
+        """
+
+    elif cmd == "mqtt":
+        cmd2 = sys.argv[2]
+        if cmd2 == "publish": mqtt_publish(key=sys.argv[3], data=sys.argv[4])
+        if cmd2 == "listen": mqtt_listen(key=sys.argv[3])
+
+    elif cmd == "man":
+        print(man)
+
+    else:
+        print("Unkown command")
