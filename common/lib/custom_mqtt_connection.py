@@ -1,5 +1,5 @@
 from ..bin.mqtt_connection import MqttConnection
-from ..root_folder import aleph_root_folder
+from ..bin.root_folder import aleph_root_folder
 import os
 
 
