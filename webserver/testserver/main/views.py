@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.utils.safestring import SafeString
 
-from api.bin import functions as fn
+from bin import functions as fn
 
 
 # /
