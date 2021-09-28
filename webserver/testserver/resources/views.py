@@ -1,47 +1,32 @@
 import datetime
 
-from django.http import HttpResponseForbidden, HttpResponseBadRequest, HttpResponse, JsonResponse
-from django.shortcuts import render, redirect
-from django.utils import timezone
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import redirect
 from django.http import Http404
 
-from api.bin import functions as fn
+from bin import functions as fn
 
 
 def res_(request, resource_path):
+
+    # 1. Check if user is logged in
     if not fn.auth_(request): return redirect('/login?after=' + request.path)
     fn.add_activity_log(request)
 
+    # 2. See if resource exists. If it doesn't, return 404
     res = fn.get_resource_by_uri(resource_path)
     if res is None: raise Http404("Resource not found")
-    if res["key"] == "" or fn.access_(request, res["key"]): pass
-    else: return HttpResponseForbidden()
+    if not fn.access_(request, res["key"]): return HttpResponseForbidden()
 
-    # Extras
-    extras = {}
-    extras["title"] = res["name"]
-    extras["uri"] = resource_path
+    # 3. Get extras from GET
+    extras = {"res": res, "date_now": datetime.datetime.today().strftime('%Y-%m-%d')}
     for extra in request.GET: extras[extra] = request.GET[extra]
-    if "date" not in extras: extras["date"] = datetime.datetime.today().strftime('%Y-%m-%d')
-    print(datetime.datetime.now())
 
-    # Files
-    try:
-        pass
-    except:
-        raise
+    # 4. Get response from callback function
+    callback = res["callback"]
+    response = callback(request, extras)
 
-    # Templates
-    try:
-        return render(request, resource_path + ".html", extras)
-    except:
-        pass
-
-    raise Http404("Resource not found")
-
-
-def return_xls(filename, wb):
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=' + filename + '.xlsx'
-    wb.save(response)
-    return response
+    if isinstance(response, dict) or isinstance(response, list):
+        return JsonResponse({"result": "ok", "r": 0, "data": response}, safe=False)
+    else:
+        return response
