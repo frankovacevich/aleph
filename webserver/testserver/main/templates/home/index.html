@@ -17,7 +17,7 @@
     .item{ padding: 10px 0; display: flex; align-items: center; cursor: pointer; }
     .item .icon{ border-radius: 5px; width: 32px; height: 32px; background-color: gray; font-size: 20px; text-align: center; line-height: 34px; }
     .item .text{ margin-left: 10px; }
-    .item:hover{ color: #2399dd; }
+    .item:hover{ color: #4FA37D; }
 
     /* For phones */
     @media screen and (max-width: 600px){
@@ -52,14 +52,14 @@
 
 <div class="top-container">
     <div><img src='{% static "res/logo.png" %}' style="width: 48px;"></div>
-    <div class="top-text">Aleph Server</div>
+    <div class="top-text">Tonutti | Servidor</div>
 </div>
 
 <div class="main-container" id="main-container">
 
     <!-- 1 -->
     <div class="sub-container">
-        <div class="title">General</div>
+        <div class="title">{{ request.user.first_name }}</div>
         <div class="item" onclick="window.location='/explorer'">
             <div class="icon"><i class="icon-tags"></i></div>
             <div class="text">Explorer</div>

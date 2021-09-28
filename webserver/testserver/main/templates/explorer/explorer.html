@@ -20,7 +20,7 @@
   <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLongTitle" style="font-family: Arial !important">Namespace extras</h5>
+        <h5 class="modal-title" id="exampleModalLongTitle" style="font-family: Arial !important">Edit metadata</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close" >
           <span aria-hidden="true">&times;</span>
         </button>
@@ -29,7 +29,8 @@
         <p>Key: <span id="namespace_extras_namespace_key"></span></p>
         <p>Field: <span id="namespace_extras_field"></span></p>
         <label for="namespace_extras_alias_textbox">Alias</label>
-        <input type="text" id="namespace_extras_alias_textbox"/>
+        <input class="form-control" type="text" id="namespace_extras_alias_textbox"/>
+        <p></p>
         <label for="namespace_extras_tooltip_textbox">Tooltip</label>
         <textarea class="form-control" id="namespace_extras_tooltip_textbox" rows="3"></textarea>
       </div>
@@ -44,7 +45,7 @@
 <!-- ==================================== -->
 <!-- TOP BAR - LEFT -->
 <!-- ==================================== -->
-<div style="position: absolute; top: 0; left: 0; width: 250px; height: 52px; background-color: rgba(0,0,0,0.05); padding: 10px">
+<div style="position: absolute; top: 0; left: 0; width: 250px; height: 52px; background-color: rgba(0,0,0,0.05); padding: 10px; padding-top: 8px">
   <div class="form-inline" style="width: 100%">
     <ul class="nav nav-pills">
       <li class="nav-item">
@@ -60,7 +61,7 @@
 <!-- ==================================== -->
 <!-- TOP BAR - RIGHT -->
 <!-- ==================================== -->
-<div style="position: absolute; top: 0; left: 250px; right: 0; height: 52px; background-color: rgba(0,0,0,0.05); padding: 10px">
+<div style="position: absolute; top: 0; left: 250px; right: 0; height: 52px; background-color: rgba(0,0,0,0.05); padding: 10px; padding-top: 8px">
   <form class = "form-inline" role = "form">
     <div class="dropdown" style="margin-right: 3px">
       <div class="btn-group btn-group-toggle" data-toggle="buttons" style="margin-right:8px">
@@ -78,6 +79,7 @@
       </button>
       <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
         <a class="dropdown-item since-dropdown active" href="#" onclick="change_settings('since',0);" id="since0">Last value</a>
+        <a class="dropdown-item since-dropdown" href="#" onclick="change_settings('since',9999);" id="since9999">All values</a>
         <div class="dropdown-divider"></div>
         <a class="dropdown-item since-dropdown" href="#" onclick="change_settings('since',1)" id="since1">24 hours</a>
         <a class="dropdown-item since-dropdown" href="#" onclick="change_settings('since',3)" id="since3">3 days</a>
@@ -147,7 +149,6 @@
     <input type="text" class="form-control" id="searchbox" autocomplete="off" placeholder="Search" style="margin: 0; padding:12px; width: 100%; height:41px; border: none; outline:0px !important; -webkit-appearance:none; box-shadow: none !important;" onkeyup="search(this.value)">
     <div id="fields_view_sub"></div>
   </div>
-
 </div>
 
 <!-- ==================================== -->
@@ -160,7 +161,6 @@
 
   <div id="plot_view" style="width:100%; height:100%;">
   </div>
-
 </div>
 
 <script>
@@ -288,11 +288,10 @@
 
     if(loading > 0){ $("#loading_icon").show() }
       if(loading == 0){ $("#loading_icon").hide() }
-    }
+  }
 
 
   // Globals
-
   var NamespaceTree = null;
   var FieldsTree = null;
   var TableView = null;
@@ -319,26 +318,6 @@
 
   var loading = 1;
 
-
-  /*var mqtt_host = "wss://" + window.location.hostname + "/mqtt";
-  if(window.location.protocol == "http:") mqtt_host = "ws://" + window.location.hostname + ":1883";
-
-  var mclient = mqtt_connect(mqtt_host,"admin","Sp7YBf3CHGAv57DkBLDrVdt3XBZ6rQjC4c5xgPyvAb6jAJSPtXHnjdhjMnFurvWd",[],function(topic, message){
-    if(options.since != 0) return;
-
-    node = topic.replaceAll("/",".");
-
-  if(!(node in data)) data[node] = [];
-  if(!(node in data_plot)) data_plot[node] = {};
-
-    d = JSON.parse(message);
-    data[node].splice(0,0,d);
-    update_data_plot(node);
-
-    load_table();
-    load_plot();
-  })*/
-
 // ============================================================
 // main functions
 // ============================================================
@@ -364,7 +343,6 @@ function on_changed_since(){
     for(const field in fields[node]){ fields[node][field].downloaded = false }
       download_data(node, options.since, options.count);
   }
-
 }
 
 function download_nodes(after = function(){}){
@@ -391,7 +369,6 @@ function download_fields(node, after = function(){}){
   $.post("/api/namespace/" + node + "/fields", { csrfmiddlewaretoken: csrftoken },function(result){
     fields[node] = {};
 
-    console.log(result)
     // sort fields so that fields with aliases are first, and the rest sort alphabetically
     result = result.sort(function(a,b){
       if("alias" in a && "alias" in b){
@@ -415,7 +392,7 @@ function download_fields(node, after = function(){}){
       prop.downloaded = false;
 
       let alias = "alias" in prop && prop.alias != "" ? prop.alias : prop.path;
-      prop.key = prop.path;
+      prop.key = prop.field;
       prop.path = alias;
       fields[node][alias] = prop;
     }
@@ -445,12 +422,12 @@ function download_data(node, since, count, after = function(){}){
         fields[node][field].downloaded = true;
         selected_fields.push(fields[node][field].key);
       }
-      }
+    }
 
-      if(selected_fields.length == 0){
-        set_loading(false);
-        return;
-      }
+    if(selected_fields.length == 0){
+      set_loading(false);
+      return;
+    }
 
     // download data
     $.post("api/namespace/" + node + "/data", { csrfmiddlewaretoken: csrftoken, fields: selected_fields, since: since, count: count }, function(result){
@@ -470,7 +447,6 @@ function download_data(node, since, count, after = function(){}){
     show_toast("toasts_area","<a style='color:red'>Error</a>","",err.message);
   }
 }
-
 
 // reaccomodates the data to make it easier to plot it
 function update_data_plot(node){
@@ -533,7 +509,6 @@ function load_fields(node){
 
   if(node in fields){
 
-
     let tree_view_data = [];
     for(const f in fields[node]){
       let field = fields[node][f];
@@ -563,7 +538,7 @@ function load_fields(node){
 
               if(!(node in data)) { data[node] = [] }
 
-                download_data(node, options.since, options.count);
+              download_data(node, options.since, options.count);
 
               load_table();
               load_plot();
@@ -581,235 +556,230 @@ function load_fields(node){
           }
 
 
-      } else {
-        document.getElementById("fields_view_sub").innerHTML = "";
-        load_table();
+  } else {
+    document.getElementById("fields_view_sub").innerHTML = "";
+    load_table();
 
-          // fetch fields
-          // download_data(node, function(){load_table(); load_plot();});
-          download_fields(node, function(){load_fields(node);});
-
-      }
-
-      /*if(FieldsTree != null){
-        FieldsTree.collapse_all();
-      }*/
-      $(function () { $('[data-toggle="tooltip"]').tooltip() })
+    // fetch fields
+    // download_data(node, function(){load_table(); load_plot();});
+    download_fields(node, function(){load_fields(node);});
   }
 
-  function load_table(){
-    set_loading(true);
-    // get current node
-    let sn = NamespaceTree.selected_node;
-    if(!fields[sn]){
-      $("#table_view").html("");
-      set_loading(false);
-      return;
-    }
+  /*if(FieldsTree != null){
+    FieldsTree.collapse_all();
+  }*/
+  $(function () { $('[data-toggle="tooltip"]').tooltip() })
+}
 
-      // create a 'headers' array and an 'aliases' dict to display custom headers on the table
-      let my_headers = [];
-      let aliases = {};
-
-      // if not id'd data, show 't'
-      if(!("id_" in fields[sn])) { my_headers.push("t"); }
-
-      // add headers and aliases for each field in current node
-      for(const field in fields[sn]){
-        if(!fields[sn][field].selected) continue;
-        my_headers.push(fields[sn][field].key);
-        aliases[fields[sn][field].key] = field;
-      }
-
-      // create table control
-      TableView = new Subtle.Table("table_view",{ headers : my_headers, row_header_width: 50, max_displayed_data : 10000, header_aliases: aliases, insert_on_top: true, null_cell_text:'-', nullable_columns: ["t"] });
-
-      // fill table controll manually
-      for(const row in data[sn]){
-        rid = "id_" in data[sn][row] ? data[sn][row]["id_"] : data[sn][row]["t"];
-
-
-        if(rid in TableView.data) { TableView.data[rid] = Object.assign(TableView.data[rid], data[sn][row]); }
-        else { TableView.data[rid] = data[sn][row]; }
-
-        if(rid > 10000) continue;
-      }
-
-      /*for(const row in data[sn]){
-          TableView.update("id_" in data[sn][row] ? data[sn][row]["id_"] : "",data[sn][row]);
-      }*/
-
-      // update and draw control
-      TableView.update();
-      TableView.draw();
-      set_loading(false);
-  }
-
-  function load_plot(){
-    set_loading(true);
-    if(options.freeze){
-      set_loading(false);
-      return;
-    }
-
-    traces = [];
-    let y_ = 0;
-    for(const node in fields){
-      for(const field in fields[node]){
-        let key = fields[node][field].key;
-        if(!(node in data_plot)) continue;
-        if(!fields[node][field].selected) continue;
-        if(!(key in data_plot[node])) continue;
-
-        y_++;
-        traces.push({
-          x: data_plot[node][key].x,
-          y: data_plot[node][key].y,
-          type: 'scatter',
-          mode: options["show_points"] ? 'lines+markers' : 'lines',
-          line: {shape: options["hv"] ? 'vh' : 'linear'},
-          name: field,
-          yaxis: options["normalize"] ? "y" + y_ : "y",
-        });
-      }
-    }
-
-    var layout = {
-      margin: {b: 25, t: 15, l: 45, r: 25},
-      xaxis:{
-        type:"date",
-        rangeslider: { autorange: true, },
-      },
-      showlegend : options["show_legend"],
-      legend : { orientation: "h", x:0, y:1.2 },
-
-      yaxis : { visible : options["normalize"] ? false : true, fixedrange: false },
-    };
-
-    if(options["normalize"]){
-      for(let i = 0; i <= y_; i++){
-        layout["yaxis" + i] = { overlaying: "y", visible: false, fixedrange: false }
-      }
-    }
-
-    Plotly.newPlot(document.getElementById("plot_view"), traces, layout , {displaylogo: false, modeBarButtonsToRemove: ['toImage','zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d']}); //'resetScale2d'
-
+function load_table(){
+  set_loading(true);
+  // get current node
+  let sn = NamespaceTree.selected_node;
+  if(!fields[sn]){
+    $("#table_view").html("");
     set_loading(false);
+    return;
   }
 
+  // create a 'headers' array and an 'aliases' dict to display custom headers on the table
+  let my_headers = [];
+  let aliases = {};
 
-  function load_namespace_extras(){
-    let sn = NamespaceTree.selected_node;
-    let sf = FieldsTree.selected_node;
+  // if not id'd data, show 't'
+  if(!("id_" in fields[sn])) { my_headers.push("t"); }
 
-    let field = fields[sn][sf];
-    if(!field) return;
-
-    $("#namespace_extras_alias_textbox").val(field["alias"]);
-    $("#namespace_extras_tooltip_textbox").val(field["tooltip"]);
-
-    $("#namespace_extras_namespace_key").html(sn);
-    $("#namespace_extras_field").html(field["key"]);
-
-    $('#namespace_extras_modal').modal('show');
+  // add headers and aliases for each field in current node
+  for(const field in fields[sn]){
+    if(!fields[sn][field].selected) continue;
+    my_headers.push(fields[sn][field].key);
+    aliases[fields[sn][field].key] = field;
   }
 
-  function upload_namespace_extras(){
-    set_loading(true);
-    try{
-      let node = $("#namespace_extras_namespace_key").html();
-      let field = $("#namespace_extras_field").html();
-      let alias = $("#namespace_extras_alias_textbox").val();
-      let tooltip = $("#namespace_extras_tooltip_textbox").val();
-      $('#namespace_extras_modal').modal('hide');
+  // create table control
+  TableView = new Subtle.Table("table_view",{ headers : my_headers, row_header_width: 70, max_displayed_data : 10000, header_aliases: aliases, insert_on_top: true, null_cell_text:'-', nullable_columns: ["t"] });
 
-      $.post("/api/namespace/" + node + "/set_extra", { csrfmiddlewaretoken: csrftoken, field: field, alias: alias, tooltip: tooltip}, function(result){
-        set_loading(false);
-        if("r" in result){
-          if(result.r == 0){
-            show_toast("toasts_area","Ok","","Namespace updated successfully");
-            download_fields(NamespaceTree.selected_node, function(){
-              load_fields(NamespaceTree.selected_node);
-            });
-          } else {
-            show_toast("toasts_area","<a style='color:red'>Error</a>","",result.result);
-          }
-        }
-      }).fail(function(result){
-        show_toast("toasts_area","<a style='color:red'>Error</a>","","Hubo un error en la conexión con el servidor. Intente actualizando la página.");
-      });
-    }catch(err){
-      set_loading(false);
-      show_toast("toasts_area","<a style='color:red'>Error</a>","",err.message);
-    }
+  // fill table controll manually
+  for(const row in data[sn]){
+    rid = "id_" in data[sn][row] ? data[sn][row]["id_"] : data[sn][row]["t"];
+
+
+    if(rid in TableView.data) { TableView.data[rid] = Object.assign(TableView.data[rid], data[sn][row]); }
+    else { TableView.data[rid] = data[sn][row]; }
+
+    if(rid > 10000) continue;
   }
 
-  function disable_edition(){
-    if(options.edition_enabled){
-      options.edition_enabled = false;
-      document.getElementById("edit_btn").innerHTML = "Habilitar edición";
-      TableView.params.content_editable = false;
-    }
-  }
+  /*for(const row in data[sn]){
+      TableView.update("id_" in data[sn][row] ? data[sn][row]["id_"] : "",data[sn][row]);
+  }*/
 
-  function edit(){
-    if(!TableView) return;
+  // update and draw control
+  TableView.update();
+  TableView.draw();
+  set_loading(false);
+}
 
-    if(!("id_" in fields[NamespaceTree.selected_node])){
-      show_toast("toasts_area","<a style='color:red'>Error</a>","","Only data with id_ is editable");
-      return;
-    }
-
-    if(!options.edition_enabled){
-      options.edition_enabled = true;
-      document.getElementById("edit_btn").innerHTML = "Publicar cambios";
-      TableView.params.content_editable = true;
-      TableView.draw();
-      return;
-    }
-
-    set_loading(true);
-
-    try{
-      let changes = TableView.get_changes();
-      let data = [];
-      for(const id_ in changes){
-        changes[id_]["id_"] = id_;
-        data.push(changes[id_]);
-      }
-      let key = NamespaceTree.selected_node;
-
-      $.post("/api/namespace/" + key + "/publish", { ccsrfmiddlewaretoken: csrftoken, data: JSON.stringify(data) }, function(result){
-        set_loading(false);
-        if("r" in result){
-          if(result.r == 0){
-            show_toast("toasts_area","Ok","","Changes published successfully");
-          } else {
-            show_toast("toasts_area","<a style='color:red'>Error</a>","",result.result);
-          }
-        }
-      }).fail(function(result){
-        show_toast("toasts_area","<a style='color:red'>Error</a>","","Hubo un error en la conexión con el servidor. Intente actualizando la página.");
-      });
-    }catch(err){
-      set_loading(false);
-      show_toast("toasts_area","<a style='color:red'>Error</a>","",err.message);
-    }
-  }
-
-
-  // init
-  $( document ).ready(function() {
-    download_nodes( function(){ load_nodes() } );
-    show("namespace");
+function load_plot(){
+  set_loading(true);
+  if(options.freeze){
     set_loading(false);
-    $("#btn_fields").hide();
-    $(function () { $('[data-toggle="tooltip"]').tooltip() })
-    show("table");
-  });
+    return;
+  }
 
+  traces = [];
+  let y_ = 0;
+  for(const node in fields){
+    for(const field in fields[node]){
+      let key = fields[node][field].key;
+      if(!(node in data_plot)) continue;
+      if(!fields[node][field].selected) continue;
+      if(!(key in data_plot[node])) continue;
 
+      y_++;
+      traces.push({
+        x: data_plot[node][key].x,
+        y: data_plot[node][key].y,
+        type: 'scatter',
+        mode: options["show_points"] ? 'lines+markers' : 'lines',
+        line: {shape: options["hv"] ? 'vh' : 'linear'},
+        name: field,
+        yaxis: options["normalize"] ? "y" + y_ : "y",
+      });
+    }
+  }
 
+  var layout = {
+    margin: {b: 25, t: 15, l: 45, r: 25},
+    xaxis:{
+      type:"date",
+      rangeslider: { autorange: true, },
+    },
+    showlegend : options["show_legend"],
+    legend : { orientation: "h", x:0, y:1.2 },
+
+    yaxis : { visible : options["normalize"] ? false : true, fixedrange: false },
+  };
+
+  if(options["normalize"]){
+    for(let i = 0; i <= y_; i++){
+      layout["yaxis" + i] = { overlaying: "y", visible: false, fixedrange: false }
+    }
+  }
+
+  Plotly.newPlot(document.getElementById("plot_view"), traces, layout , {displaylogo: false, modeBarButtonsToRemove: ['toImage','zoom2d', 'pan2d', 'select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d']}); //'resetScale2d'
+
+  set_loading(false);
+}
+
+function load_namespace_extras(){
+  let sn = NamespaceTree.selected_node;
+  let sf = FieldsTree.selected_node;
+
+  let field = fields[sn][sf];
+  if(!field) return;
+
+  $("#namespace_extras_alias_textbox").val(field["alias"]);
+  $("#namespace_extras_tooltip_textbox").val(field["tooltip"]);
+
+  $("#namespace_extras_namespace_key").html(sn);
+  $("#namespace_extras_field").html(field["field"]);
+
+  $('#namespace_extras_modal').modal('show');
+}
+
+function upload_namespace_extras(){
+  set_loading(true);
+  try{
+    let node = $("#namespace_extras_namespace_key").html();
+    let field = $("#namespace_extras_field").html();
+    let alias = $("#namespace_extras_alias_textbox").val();
+    let tooltip = $("#namespace_extras_tooltip_textbox").val();
+    $('#namespace_extras_modal').modal('hide');
+
+    $.post("/api/namespace/" + node + "/set_extra", { csrfmiddlewaretoken: csrftoken, field: field, alias: alias, description: tooltip}, function(result){
+      set_loading(false);
+      if("r" in result){
+        if(result.r == 0){
+          show_toast("toasts_area","Ok","","Namespace updated successfully");
+          download_fields(NamespaceTree.selected_node, function(){
+            load_fields(NamespaceTree.selected_node);
+          });
+        } else {
+          show_toast("toasts_area","<a style='color:red'>Error</a>","",result.result);
+        }
+      }
+    }).fail(function(result){
+      show_toast("toasts_area","<a style='color:red'>Error</a>","","Hubo un error en la conexión con el servidor. Intente actualizando la página.");
+    });
+  }catch(err){
+    set_loading(false);
+    show_toast("toasts_area","<a style='color:red'>Error</a>","",err.message);
+  }
+}
+
+function disable_edition(){
+  if(options.edition_enabled){
+    options.edition_enabled = false;
+    document.getElementById("edit_btn").innerHTML = "Habilitar edición";
+    TableView.params.content_editable = false;
+  }
+}
+
+function edit(){
+  if(!TableView) return;
+
+  if(!("id_" in fields[NamespaceTree.selected_node])){
+    show_toast("toasts_area","<a style='color:red'>Error</a>","","Only data with id_ is editable");
+    return;
+  }
+
+  if(!options.edition_enabled){
+    options.edition_enabled = true;
+    document.getElementById("edit_btn").innerHTML = "Publish changes";
+    TableView.params.content_editable = true;
+    TableView.draw();
+    show_toast("toasts_area","Edition enabled","","You can edit values on the table. Remember to publish the changes to make them effective.");
+    return;
+  }
+
+  set_loading(true);
+
+  try{
+    let changes = TableView.get_changes();
+    let data = [];
+    for(const id_ in changes){
+      changes[id_]["id_"] = id_;
+      data.push(changes[id_]);
+    }
+    let key = NamespaceTree.selected_node;
+
+    $.post("/api/namespace/" + key + "/publish", { ccsrfmiddlewaretoken: csrftoken, data: JSON.stringify(data) }, function(result){
+      set_loading(false);
+      if("r" in result){
+        if(result.r == 0){
+          show_toast("toasts_area","Ok","","Changes published successfully");
+        } else {
+          show_toast("toasts_area","<a style='color:red'>Error</a>","",result.result);
+        }
+      }
+    }).fail(function(result){
+      show_toast("toasts_area","<a style='color:red'>Error</a>","","Hubo un error en la conexión con el servidor. Intente actualizando la página.");
+    });
+  }catch(err){
+    set_loading(false);
+    show_toast("toasts_area","<a style='color:red'>Error</a>","",err.message);
+  }
+}
+
+// init
+$( document ).ready(function() {
+  download_nodes( function(){ load_nodes() } );
+  show("namespace");
+  set_loading(false);
+  $("#btn_fields").hide();
+  $(function () { $('[data-toggle="tooltip"]').tooltip() })
+  window.setTimeout(()=>(show("table")), 200);
+});
 
 </script>
 
