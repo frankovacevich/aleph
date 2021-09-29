@@ -59,15 +59,17 @@
 
     <!-- 1 -->
     <div class="sub-container">
-        <div class="title">{{ request.user.first_name }}</div>
+        <div class="title">{% if request.user.first:first_name %}{{ request.user.first_name }}{% else %}Me{% endif %}</div>
         <div class="item" onclick="window.location='/explorer'">
             <div class="icon"><i class="icon-tags"></i></div>
             <div class="text">Explorer</div>
         </div>
+        {% if request.user.is_staff %}
         <div class="item" onclick="window.location='/admin/'">
             <div class="icon"><i class="icon-user"></i></div>
             <div class="text">Admin</div>
         </div>
+        {% endif %}
         <div class="item" onclick="window.location='/docs/API.html'">
             <div class="icon"><i class="icon-category"></i></div>
             <div class="text">API</div>
