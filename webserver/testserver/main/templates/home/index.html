@@ -59,7 +59,7 @@
 
     <!-- 1 -->
     <div class="sub-container">
-        <div class="title">{% if request.user.first:first_name %}{{ request.user.first_name }}{% else %}Me{% endif %}</div>
+        <div class="title">{% if request.user.first.first_name %}{{ request.user.first_name }}{% else %}Me{% endif %}</div>
         <div class="item" onclick="window.location='/explorer'">
             <div class="icon"><i class="icon-tags"></i></div>
             <div class="text">Explorer</div>
