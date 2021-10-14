@@ -33,48 +33,24 @@ class Loop:
         self.log.write("Starting loop")
 
         # Start loop thread for the mqtt client
-        self.mqtt_connection.connect()
-        self.mqtt_connection.loop_on_background()
-
-        # Keep the time an error is display to space out the messages
-        # so that we do not flood the user's log
-        __last_errors__ = {"mqtt_conn": 0, "device_conn": 0, "reading_device": 0}
+        self.mqtt_connection.loop_async()
 
         while True:
-
             # 0. make time step
             t = self.wait_one_step.step(t)
 
-            # 1. connect to mqtt
-            try:
-                # When step interval is too long, force a loop so that we're sure we are connected
-                if self.time_step > 10:
-                    self.mqtt_connection.loop()
-                if not self.mqtt_connection.connected:
-                    r = self.mqtt_connection.reconnect()
-
-            except Exception as e:
-                if time.time() - __last_errors__["mqtt_conn"] > 3600:
-                    self.log.write("Error while connecting to mqtt server (" + str(e) + ").")
-                    __last_errors__["mqtt_conn"] = time.time()
-                continue
-
-            # 2. Establish device connection
+            # 1. Establish device connection
             try:
                 if not self.source_connection.connected:
                     self.source_connection.connect()
                     if self.source_connection.connected:
                         self.log.write("Connected to device")
 
-                __last_errors__["device_conn"] = ""
             except Exception as e:
-                if time.time() - __last_errors__["device_conn"] > 3600:
-                    self.log.write("Error while connecting to source (" + str(e) + ")")
-                    __last_errors__["device_conn"] = time.time()
+                self.log.write("Error while connecting to source (" + str(e) + ")", "device_conn_error")
                 self.source_connection.connected = False
-                pass
 
-            # 3. Read values from device
+            # 2. Read values from device
             many_values = []
             try:
                 t0 = time.time()
@@ -95,12 +71,9 @@ class Loop:
                 else:
                     raise Exception("Bad format for data returned by do() (must be a dict or a list of dict)")
 
-                __last_errors__["reading_device"] = ""
             except Exception as e:
-                if time.time() - __last_errors__["reading_device"] > 3600:
-                    error_as_string = " (" + str(e) + ")" + "\n\n" + traceback.format_exc()
-                    self.log.write("Error while reading source: " + error_as_string + "")
-                    __last_errors__["reading_device"] = time.time()
+                error_as_string = " (" + str(e) + ")" + "\n\n" + traceback.format_exc()
+                self.log.write("Error while reading source: " + error_as_string + "", "reading_device_error")
                 self.source_connection.connected = False
                 continue
 
@@ -112,7 +85,7 @@ class Loop:
             for values in many_values:
 
                 # If dict is empty
-                if len(values) == 0:
+                if len(values) < 3:
                     continue
 
                 # If data is malformed
@@ -159,13 +132,16 @@ class Loop:
                     try:
                         self.mqtt_connection.publish(values)
                     except Exception as e:
-                        self.log.write("Error while sending mqtt message (" + str(e) + ")")
+                        self.log.write("Error while sending mqtt message (" + str(e) + ")", "mqtt_error")
                         continue
 
                 # 6. Local backup
                 if self.local_backup is not None:
-                    self.local_backup.save_data(values)
+                    try:
+                        self.local_backup.save_data(self.mqtt_connection.default_topic, values)
+                    except Exception as e:
+                        self.log.write("Error while saving on local backup (" + str(e) + ")", "mqtt_error")
+                        continue
 
                 continue
-
         return
