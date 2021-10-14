@@ -39,5 +39,4 @@ def process_new_message(topic, data):
 log.write("Starting main supervisor")
 mqtt_connection.on_new_message = process_new_message
 mqtt_connection.subscription_topics = ["#"]
-mqtt_connection.connect()
-mqtt_connection.loop_forever()
+mqtt_connection.loop_forever(persistent=True)
