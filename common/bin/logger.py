@@ -13,6 +13,8 @@ class Log:
 
     def __init__(self, file):
         self.enabled = True
+        self.sent_messages_ts = {}
+        self.title = file
 
         try:
             self.file = file
@@ -23,27 +25,34 @@ class Log:
                 # do a first write
                 f = open(self.file, "a+")
                 f.close()
+                self.title = self.file.split("/")[-1].split(".")[0]
 
-            self.notifier = None ## Add a notifier if you want to receive notifications
+            self.notifier = None  # Add a notifier if you want to receive notifications
 
         except Exception as e:
             print("Error while initializing log (" + str(e) + ")")
             self.enabled = False
 
-    def write(self, line):
+    def write(self, line, message_id=None):
         t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
 
-        # if not self.enabled:
-        #     print(t + " | " + line)
-        #     return
-        print(t + " | " + line)
+        # Save message id to avoid sending too many consecutive messages
+        if message_id is not None:
+            if message_id not in self.sent_messages_ts:
+                self.sent_messages_ts[message_id] = time.time()
+            elif time.time() - self.sent_messages_ts[message_id] > 3600:
+                return
 
-        if self.file != '':
+        if not self.enabled:
+            print(t + " | " + line)
+            return
+
+        if self.file != '' and self.enabled:
             f = open(self.file, "a+")
             f.write(t + " | " + line + "\n")
             f.close()
 
         if self.notifier is not None:
-            self.notifier.send("<b>" + self.file.split("/")[-1].split(".")[0] + "</b>\n" + line)
+            self.notifier.send("<b>" + self.title + "</b>\n" + line)
 
         return
