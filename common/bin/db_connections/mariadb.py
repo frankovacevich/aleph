@@ -1,4 +1,4 @@
-from .sql2 import SQLConnection
+from .sql import SQLConnection
 import mysql.connector
 
 
