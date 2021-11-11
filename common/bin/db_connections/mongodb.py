@@ -46,7 +46,7 @@ class MongoDBConnection:
             v = data[field]
             if v is None: continue
             if isinstance(v, float) and (math.isinf(v) or math.isnan(v)): continue
-            dat[field.replace(".", "_dot_")] = v
+            dat[field.replace(".", "_")] = v
 
             updt = {'key': key, 'field': field, 'alias': field, 'description': ''}
             metadata.update_one({'key': key, 'field': field}, {'$set': updt}, upsert=True)
@@ -76,10 +76,10 @@ class MongoDBConnection:
             #        coll.insert_many(self.buffer[key])
             #        self.buffer[key].clear()
 
-    def get_data(self, key, field, since, until, count):
+    def get_data(self, key, field, since, until, count, where=None):
         if key not in self.get_keys(): return []
 
-        f_filter = {"t": {"$gte": since, "$lte": until}}
+        t_filter = {"t": {"$gte": since, "$lte": until}, "deleted_": {"$not": True}}
 
         if field != "*":
             or_filter = []
@@ -87,20 +87,21 @@ class MongoDBConnection:
             for f in field:
                 or_filter.append({f: {"$exists": True}})
 
-            f_filter = {"$and": [f_filter, {"$or": or_filter}] }
+        if where is not None: f_filter = {"$and": [t_filter, {"$or": or_filter}, where]}
+        else: f_filter = {"$and": [t_filter, {"$or": or_filter}]}
 
         collection = self.client[self.database][key]
         found = collection.find(f_filter).sort("t", pymongo.DESCENDING).limit(count)
 
-        #result = [{x.replace("_dot_", "."): y[x] for x in y if x != "_id" and x == "t" ir x == "t_" or x == "id_" or field == "*" or x.replace("_dot_", ".") in field } for y in found]
+        #result = [{x.replace("_", "."): y[x] for x in y if x != "_id" and x == "t" ir x == "t_" or x == "id_" or field == "*" or x.replace("_", ".") in field } for y in found]
 
         result = []
         for item in found:
             nitem = {}
             for x in item:
                 if x == "_id": continue
-                if field == "*" or x == "t" or x == "id_" or x.replace("_dot_", ".") in field:
-                    nitem[x.replace("_dot_", ".")] = item[x]
+                if field == "*" or x == "t" or x == "id_" or x.replace("_", ".") in field:
+                    nitem[x.replace("_", ".")] = item[x]
 
             result.append(nitem)
 
@@ -113,7 +114,7 @@ class MongoDBConnection:
         collection = self.client[self.database][key]
 
         found = collection.find_one(field_filter)
-        result = {x.replace("_dot_", "."): found[x] for x in found if x != "_id"}
+        result = {x.replace("_", "."): found[x] for x in found if x != "_id"}
         return result
 
     def delete_data(self, key, since, until):
@@ -147,7 +148,7 @@ class MongoDBConnection:
         return
 
     def remove_field(self, key, field):
-        self.client[self.database]["metadata"].delete_one({'key': key, 'field': field.replace(".", "_dot_")})
+        self.client[self.database]["metadata"].delete_one({'key': key, 'field': field.replace(".", "_")})
         return
 
     def rename_key(self, key, new_key):
@@ -156,7 +157,7 @@ class MongoDBConnection:
         return
 
     def rename_field(self, key, field, new_field):
-        self.client[self.database][key].update_many({}, {'$rename': {"name." + field.replace('.', '_dot_'): "name." + new_field.replace('.', '_dot_')}})
+        self.client[self.database][key].update_many({}, {'$rename': {"name." + field.replace('.', '_'): "name." + new_field.replace('.', '_')}})
         self.client[self.database]["metadata"].update_one({'key': key, 'field': field}, {"$set": {'field': new_field}})
         return
 
