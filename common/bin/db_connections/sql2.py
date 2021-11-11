@@ -41,16 +41,16 @@ class SQLConnection:
 
         # Make time a timestamp and id_ a string
         dat["t"] = dat["t"].replace("T", " ").replace("Z", "")
+        if "t_" in dat: del dat["t_"]
         if "id_" in dat: dat["id_"] = str(dat["id_"])
 
         # Create table if not exists
         if self.dbs == "sqlite":
-            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id INTEGER PRIMARY KEY AUTOINCREMENT, t DATETIME NOT NULL)'
+            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id INTEGER PRIMARY KEY AUTOINCREMENT, t DATETIME NOT NULL, deleted_ BOOL DEFAULT FALSE)'
         elif self.dbs == "mariadb":
-            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id INT NOT NULL AUTO_INCREMENT, t DATETIME NOT NULL, PRIMARY KEY (`id`))'
+            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id INT NOT NULL AUTO_INCREMENT, t DATETIME NOT NULL, deleted_ BOOL DEFAULT FALSE, PRIMARY KEY (`id`))'
         elif self.dbs == "postgres":
-            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id BIGSERIAL PRIMARY KEY, t TIMESTAMP NOT NULL)'
-            print(sql)
+            sql = 'CREATE TABLE IF NOT EXISTS ' + key + ' (id BIGSERIAL PRIMARY KEY, t TIMESTAMP NOT NULL, deleted_ BOOL DEFAULT FALSE)'
         cur.execute(sql)
 
         # Get name: field map
@@ -129,13 +129,15 @@ class SQLConnection:
             query_insert = 'INSERT INTO ' + key + ' (' + query_insert[0:-1] + ') VALUES (' + query_values[0:-1] + ')'
             cur.execute(query_insert)
             if "id_" in dat:
-                sql = 'CREATE INDEX IF NOT EXISTS idx_' + key + ' ON ' + key + ' (id_)'
+                index_name = "idx_" + key
+                if len(index_name) > 64: index_name = index_name[0:64]
+                sql = 'CREATE INDEX IF NOT EXISTS ' + index_name + ' ON ' + key + ' (id_)'
                 cur.execute(sql)
 
         self.client.commit()
         cur.close()
 
-    def get_data(self, key, field, since, until, count):
+    def get_data(self, key, field, since, until, count, where=""):
         cur = self.client.cursor()
         key_org = key
         key = self.__format_key__(key)
@@ -162,8 +164,12 @@ class SQLConnection:
         since_t = since.strftime('%Y-%m-%d %H:%M:%S')
         until_t = until.strftime('%Y-%m-%d %H:%M:%S')
 
-        # run query
-        query = "SELECT " + fields_str + " FROM " + key + " WHERE t >= '" + str(since_t) + "' AND t <= '" + str(until_t) + "' AND (" + null_filter + ") ORDER BY t DESC LIMIT " + str(count)
+        # where
+        if where is None: where = ""
+        else: where = "AND (" + where + ")"
+
+        # run query        
+        query = "SELECT " + fields_str + " FROM " + key + " WHERE t >= '" + str(since_t) + "' AND t <= '" + str(until_t) + "' AND (" + null_filter + ") AND deleted_ IS NOT TRUE " + where + " ORDER BY t DESC LIMIT " + str(count)
         cur.execute(query)
         r = cur.fetchall()
         cur.close()
@@ -190,7 +196,6 @@ class SQLConnection:
         since_t = since.strftime('%Y-%m-%d %H:%M:%S')
         until_t = until.strftime('%Y-%m-%d %H:%M:%S')
         query = "DELETE FROM " + key + " WHERE t >= '" + str(since_t) + "' AND t < '" + str(until_t) + "'"
-        #print(">>", query)
         cur.execute(query)
 
         # Get number of deleted rows
@@ -253,10 +258,8 @@ class SQLConnection:
         if len(fmap) == 0: raise Exception("Unkown key")
 
         query = 'DROP TABLE IF EXISTS ' + self.__format_key__(key)
-        print(query)
         cur.execute(query)
         query = "DELETE FROM metadata WHERE key_name='" + key + "'"
-        print(query)
         cur.execute(query)
         self.client.commit()
         cur.close()
@@ -325,14 +328,17 @@ class SQLConnection:
     # Other
     # ==========================================================================
 
-    def run_sql_query(self, query, return_fields=[]):
+    def run_sql_query(self, query):
         cur = self.client.cursor()
         cur.execute(query)
         r = cur.fetchall()
 
-        if len(return_fields) > 0:
-            return self.__format_data_for_return__(r, return_fields)
-            cur.close()
+        if cur.description is not None:
+            return_fields = [x[0] for x in cur.description]
+            if len(return_fields) > 0:
+                return self.__format_data_for_return__(r, return_fields)
+                cur.close()
+
         return r
 
     def count_all_records(self):
@@ -370,17 +376,16 @@ class SQLConnection:
         return v
 
     def __format_key__(self, key):
-        return key.replace("/", ".").replace(".", "_dot_")
+        return key.replace("/", ".").replace(".", "_")
 
     def __format_data_for_return__(self, data, fields):
         m = []
         for row in data:
             r = {}
             for i in range(0, len(fields)):
-                if fields[i] == "t" and isinstance(row[i], str):
-                    r[fields[i]] = datetime.datetime.strptime(row[i], "%Y-%m-%d %H:%M:%S")
-                elif fields[i] == "t_" and isinstance(row[i], str):
-                    r[fields[i]] = datetime.datetime.strptime(row[i], "%Y-%m-%d %H:%M:%S")
+                if (fields[i] == "t" or fields[i] == "t_") and isinstance(row[i], str):
+                    if "T" in row[i]: r[fields[i]] = datetime.datetime.strptime(row[i], "%Y-%m-%dT%H:%M:%SZ")
+                    else: r[fields[i]] = datetime.datetime.strptime(row[i], "%Y-%m-%d %H:%M:%S")
                 elif row[i] is None:
                     continue
                 else:

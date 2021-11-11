@@ -94,9 +94,9 @@ class SqliteConnection(SQLConnection):
         super().save_data(key, data)
         self.__client_close__()
 
-    def get_data(self, key, field, since, until, count):
+    def get_data(self, key, field, since, until, count, where=""):
         self.__client_connect__()
-        r = super().get_data(key, field, since, until, count)
+        r = super().get_data(key, field, since, until, count, where)
         self.__client_close__()
         return r
 
@@ -118,8 +118,8 @@ class SqliteConnection(SQLConnection):
         self.__client_close__()
         return r
 
-    def run_sql_query(self, query, return_fields=[]):
+    def run_sql_query(self, query):
         self.__client_connect__()
-        r = super().run_sql_query(query, return_fields)
+        r = super().run_sql_query(query)
         self.__client_close__()
         return r
