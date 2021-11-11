@@ -18,12 +18,15 @@ class ExcelConnection:
 
         # Optional
         self.sheets_to_read = []
-        self.watch_complete_file = False
         self.read_from_copy = False
         self.add_rows_only_when_complete = False
         self.max_editing_rows = 100
-        self.include_past_records = False
+        self.publish_on_first_scan = False
         self.nullify_error_cells = True  # Changes error values (i.e. '#DIV/0!') to None
+        self.remove_null_values = True
+        self.check_rows = 4
+        self.check_cols = 4
+        self.save_temp = True
 
         # Aux
         self.temp_file = os.path.join(aleph_root_folder, "local", "temp", os.path.basename(self.file))
@@ -40,7 +43,7 @@ class ExcelConnection:
             raise Exception("File does not exist")
 
         # Check if we have a .dat file that contains the last scanned row
-        if os.path.isfile(self.last_row_file):
+        if os.path.isfile(self.last_row_file) and self.save_temp:
             try:
                 f = open(self.last_row_file)
                 content = json.loads(f.read())
@@ -50,9 +53,16 @@ class ExcelConnection:
             except:
                 pass
 
-    def do(self):
-        import time
+    def __following_cells_are_empty__(self, sheet, start_row):
+        for i in range(0, self.check_rows):
+            for j in range(1, self.check_cols+1):
+                v = sheet.cell(start_row + i, j).value
+                if v is not None:
+                    return False
 
+        return True
+
+    def do(self):
         if not self.connected: raise Exception("Not connected")
 
         # Get the last modified timestamp from file
@@ -83,7 +93,6 @@ class ExcelConnection:
 
             # Get last column and last row
             last_col = workbook[sheet].max_column + 1
-            last_row = workbook[sheet].max_row+1
 
             # Check if last row is known (if not it's the first run ever)
             if sheet not in self.last_row:
@@ -92,28 +101,28 @@ class ExcelConnection:
                 # Get last row (we do it this way to avoid problems with workbook[sheet].max_row,
                 # because sometimes it may be greater than what it should be)
                 r = 1
-                while workbook[sheet].cell(r, 1).value is not None or workbook[sheet].cell(r, 2).value is not None or workbook[sheet].cell(r+1, 1).value is not None or workbook[sheet].cell(r+1, 2).value is not None:
-                    r += 1
+                while not self.__following_cells_are_empty__(workbook[sheet], r): r += 1
                 self.last_row[sheet] = r
 
                 # Include past records or add records to editing rows on first run
-                if self.include_past_records or self.watch_complete_file:
-                    for r in range(1, last_row):
+                first_row = self.last_row[sheet] - self.max_editing_rows
+                if first_row < 1: first_row = 1
 
-                        # Get row as list
-                        row_data = []
-                        for c in range(1, last_col):
-                            cell_value = workbook[sheet].cell(r, c).value
-                            if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
-                            row_data.append(cell_value)
+                for r in range(first_row, self.last_row[sheet]):
 
-                        # Add row to data if include past records
-                        if self.include_past_records:
-                            data[sheet].append(row_data)
+                    # Get row as list
+                    row_data = [r]
+                    for c in range(1, last_col):
+                        cell_value = workbook[sheet].cell(r, c).value
+                        if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
+                        row_data.append(cell_value)
 
-                        # Also add row to editing rows if watching all file
-                        if self.watch_complete_file:
-                            self.editing_rows[sheet][r] = row_data
+                    # Add row to data
+                    if self.publish_on_first_scan:
+                        data[sheet].append(row_data)
+
+                    # Also add row to editing rows
+                    self.editing_rows[sheet][r] = row_data
 
                 # Continue to next sheet
                 continue
@@ -125,7 +134,7 @@ class ExcelConnection:
                 for r in self.editing_rows[sheet]:
 
                     # Get row as list
-                    row_data = []
+                    row_data = [r]
                     for c in range(1, last_col):
                         cell_value = workbook[sheet].cell(r, c).value
                         if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
@@ -144,24 +153,11 @@ class ExcelConnection:
                         if not self.add_rows_only_when_complete or (self.add_rows_only_when_complete and None not in row_data):
                             data[sheet].append(row_data)
 
-            # Fill editing rows if empty
-            if self.watch_complete_file and (sheet not in self.editing_rows or len(self.editing_rows[sheet]) == 0):
-                self.editing_rows[sheet] = {}
-
-                for r in range(1, last_row):
-                    row_data = []
-                    for c in range(1, last_col):
-                        cell_value = workbook[sheet].cell(r, c).value
-                        if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
-                        row_data.append(cell_value)
-                    self.editing_rows[sheet][r] = row_data
-
             # Scan for new rows
             r = self.last_row[sheet]
-            while workbook[sheet].cell(r, 1).value is not None and workbook[sheet].cell(r, 2).value is not None:
-
+            while not self.__following_cells_are_empty__(workbook[sheet], r):
                 # Get row as list
-                row_data = []
+                row_data = [r]
                 for c in range(1, last_col):
                     cell_value = workbook[sheet].cell(r, c).value
                     if self.nullify_error_cells and isinstance(cell_value, str) and cell_value.startswith("#") and cell_value.endswith("!"): cell_value = None
@@ -173,7 +169,7 @@ class ExcelConnection:
                 self.editing_rows[sheet][r] = row_data
 
                 # Keep rows in edition length below max
-                if not self.watch_complete_file and len(self.editing_rows[sheet]) > self.max_editing_rows:
+                if len(self.editing_rows[sheet]) > self.max_editing_rows:
                     del self.editing_rows[sheet][min(self.editing_rows[sheet].keys())]
 
                 # Add to data if complete
@@ -199,4 +195,12 @@ class ExcelConnection:
             pass
 
         # Pass data to read_function
-        return self.read_function(data)
+        values = self.read_function(data)
+
+        # Remove null values
+        new_values = []
+        if self.remove_null_values:
+            for v in values:
+                new_values.append({x: v[x] for x in v if v[x] is not None})
+
+        return new_values
