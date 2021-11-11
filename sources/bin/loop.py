@@ -33,9 +33,10 @@ class Loop:
         self.log.write("Starting loop")
 
         # Start loop thread for the mqtt client
-        self.mqtt_connection.loop_async()
+        if self.mqtt_connection is not None: self.mqtt_connection.loop_async()
 
         while True:
+
             # 0. make time step
             t = self.wait_one_step.step(t)
 
@@ -85,7 +86,7 @@ class Loop:
             for values in many_values:
 
                 # If dict is empty
-                if len(values) < 3:
+                if len(values) == 0:
                     continue
 
                 # If data is malformed
@@ -116,8 +117,8 @@ class Loop:
                     for field in fields_to_delete:
                         del values[field]
 
-                    if len(values) <= 2:
-                        continue
+                if len(values) <= 2:
+                    continue
 
                 # 5. On new data
                 if self.on_new_data is not None:
@@ -131,17 +132,15 @@ class Loop:
                 if self.mqtt_connection is not None:
                     try:
                         self.mqtt_connection.publish(values)
+                        if len(many_values) > 1: time.sleep(0.2)
                     except Exception as e:
-                        self.log.write("Error while sending mqtt message (" + str(e) + ")", "mqtt_error")
+                        self.log.write("Error while sending mqtt message (" + str(e) + ")")
                         continue
 
                 # 6. Local backup
                 if self.local_backup is not None:
-                    try:
-                        self.local_backup.save_data(self.mqtt_connection.default_topic, values)
-                    except Exception as e:
-                        self.log.write("Error while saving on local backup (" + str(e) + ")", "mqtt_error")
-                        continue
+                    self.local_backup.save_data(self.mqtt_connection.default_topic, values)
 
                 continue
+
         return
