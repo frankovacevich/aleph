@@ -77,5 +77,5 @@ def parse_date_to_string(date, timezone="UTC"):
     else: date = date.astimezone(pytz.timezone(timezone))
 
     if timezone == "UTC": return date.strftime("%Y-%m-%dT%H:%M:%SZ")
-    return date.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return date.strftime("%Y-%m-%d %H:%M:%S")
 

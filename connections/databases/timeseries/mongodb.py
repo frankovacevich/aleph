@@ -19,7 +19,7 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
     def read(self, key, **kwargs):
         # Parse args and key
         args = self.__clean_read_args__(key, **kwargs)
-        kwargs["skip_read_cleaning"] = True
+        self.skip_read_cleaning = True
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)
@@ -28,11 +28,11 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         if find_filter is not None: time_filter = {"$and": [time_filter, find_filter]}
 
         # Prepare projection (fields)
-        projection = None
+        projection = {}
         if args["fields"] != "*":
             projection = {x: True for x in args["fields"]}
-            projection["t"]: True
-            projection["_id"]: False
+            projection["t"] = True
+        projection["_id"] = False
 
         # Prepare ordering field and direction
         if args["order"][0] == "-":
