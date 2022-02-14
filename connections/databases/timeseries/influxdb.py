@@ -10,17 +10,17 @@ from ....common.database_field_parse import *
 from ....common.data_filter import DataFilter
 
 
-class Conn(Connection):
+class InfluxDBTimeSeries(Connection):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
 
         # Settings
         self.server = "localhost"
         self.port = 8086
         self.username = ""
         self.password = ""
-        self.database = "default"
+        self.database = "main"
 
         # Internal
         self.client = None
@@ -44,17 +44,17 @@ class Conn(Connection):
     def read(self, key, **kwargs):
         # Parse args and key
         args = self.__clean_read_args__(key, **kwargs)
-        kwargs["skip_read_cleaning"] = True
         key = db_parse_key(key)
 
         # Time filter
-        since = args["since"].strftime('%Y-%m-%d %H:%M:%S')
-        until = args["until"].strftime('%Y-%m-%d %H:%M:%S')
-        time_filter = 'time >= "' + since + '" AND time <= "' + until + '"'
+        since = args["since"].strftime('%Y-%m-%dT%H:%M:%SZ')
+        until = args["until"].strftime('%Y-%m-%dT%H:%M:%SZ')
+        time_filter = "time >= '" + since + "' AND time <= '" + until + "'"
 
         # Filter
+        where_clause = " WHERE " + time_filter
         data_filter = DataFilter.load(args["filter"]).to_sql_where_clause()
-        where_clause = " WHERE (" + time_filter + ") AND (" + data_filter + ")"
+        if data_filter != "": where_clause = " AND (" + data_filter + ")"
 
         # Fields
         fields = args["fields"]
@@ -65,13 +65,10 @@ class Conn(Connection):
         if args["limit"] != 0: limit_and_offset = " LIMIT " + str(args["limit"])
         if args["offset"] != 0: limit_and_offset = " OFFSET " + str(args["offset"])
 
-        # Order
-        if args["order"][0] == "-":
-            sorting_field = args["order"][1:]
-            sorting_clause = " ORDER BY " + sorting_field + " DESCENDING"
-        else:
-            sorting_field = args["order"]
-            sorting_clause = " ORDER BY " + sorting_field + " ASCENDING"
+        # Order: influx only supports sorting by time
+        if args["order"] == "t": sorting_clause = " ORDER BY time ASC"
+        elif args["order"] == "-t": sorting_clause = " ORDER BY time DESC"
+        else: sorting_clause = ""
 
         query = "SELECT " + fields + ", time as t FROM " + key + where_clause + sorting_clause + limit_and_offset
 

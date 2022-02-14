@@ -309,7 +309,6 @@ class Connection:
             return data
 
         for record in data:
-
             # Every record in data has a timestamp
             if "t" not in record: record["t"] = now()
             else: record["t"] = parse_date(record["t"])
@@ -318,7 +317,7 @@ class Connection:
             # Filter
             if kwargs["filter"] is not None: record = kwargs["filter"].apply_to(record)
             # Fields
-            if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"]}
+            if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f =="id_"}
             # Check if record is not empty
             if not self.__check_record_is_not_empty__(record): continue
             # Change time from datetime to string

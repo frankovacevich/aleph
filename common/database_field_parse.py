@@ -1,7 +1,7 @@
 
 
 def db_parse_key(key):
-    return key
+    return key.replace(".", "_").replace("/", "_")
 
 
 def db_parse_field(field):
