@@ -23,8 +23,10 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)
-        time_filter = {"t": {"$gte": kwargs["since"], "$lte": kwargs["until"]}}
-        find_filter = {"$and": [time_filter, DataFilter.load(kwargs["filter"]).to_mongodb_filter()]}
+
+        time_filter = {"t": {"$gte": args["since"], "$lte": args["until"]}}
+        find_filter = DataFilter.load(args["filter"]).to_mongodb_filter()
+        if find_filter is not None: time_filter = {"$and": [time_filter, find_filter]}
 
         # Prepare projection (fields)
         projection = None
@@ -43,12 +45,12 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
 
         # Get data from collection
         collection = self.client[self.database][key]
-        found = collection.find(find_filter, projection=projection, limit=args["limit"], skip=args["offset"])
-        found = found.sort([sorting_field, sorting_order])
+        found = collection.find(time_filter, projection=projection, limit=args["limit"], skip=args["offset"])
+        #found = found.sort([sorting_field, sorting_order])
 
         return list(found)
 
     def write(self, key, data):
         collection = self.client[self.database][db_parse_key(key)]  # [database][collection]
-        collection.create_index('time')
+        collection.create_index('t')
         collection.insert_many(data)
