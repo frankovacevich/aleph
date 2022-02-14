@@ -6,6 +6,11 @@ from ....connections.connection import Connection
 from ....common.file_handler import FileHandler
 from openpyxl import load_workbook
 
+COLUMN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+COLUMN_LETTERS = [x for x in COLUMN_LETTERS]
+COLUMN_LETTERS += ["A" + x for x in COLUMN_LETTERS]
+COLUMN_LETTERS += ["B" + x for x in COLUMN_LETTERS]
+
 
 class Excel(Connection):
 

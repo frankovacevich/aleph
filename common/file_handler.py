@@ -9,7 +9,8 @@ import time
 
 class FileHandler:
 
-    COLUMN_LETTERS = "A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z".split(",")
+    COLUMN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    COLUMN_LETTERS = [x for x in COLUMN_LETTERS]
     COLUMN_LETTERS += ["A" + x for x in COLUMN_LETTERS]
     COLUMN_LETTERS += ["B" + x for x in COLUMN_LETTERS]
 
