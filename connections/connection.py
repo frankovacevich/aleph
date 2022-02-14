@@ -26,6 +26,8 @@ class Connection:
         # Internal
         self.__connected__ = False
         self.__unsubscribe_flags__ = {}
+        self.compare_to_previous = False         # Use on read function to compare values after reading (see docs)
+        self.skip_read_cleaning = False          # Use on read function to skip clean_read_data() (see docs)
 
     # ===================================================================================
     # Main functions (override me)
@@ -119,7 +121,7 @@ class Connection:
             # Call read function
             data = self.read(key, **args)
             # Compare to past values
-            if "compare_to_previous" in args and args["compare_to_previous"]: data = self.__compare_to_previous__(data)
+            if self.compare_to_previous: data = self.__compare_to_previous__(data)
             # Clean and return
             data = self.__clean_read_data__(key, data, **args)
             return data
@@ -244,15 +246,6 @@ class Connection:
         Other optional parameters
         ###
 
-        skip_read_cleaning: if True, skips the data cleaning after reading
-                            use if the reading method already returns clean data
-
-        compare_to_previous: use when the read function cannot distinguish between new values and old values;
-                             this will compare the values the read returns with previous values, and remove
-                             values that haven't changed. It works better if persistence is True.
-
-        cleaned: if arguments have already been cleaned
-
         """
         # If cleaned flag is set, do nothing
         if "cleaned" in kwargs and kwargs["cleaned"]: return kwargs
@@ -309,7 +302,8 @@ class Connection:
         cleaned_data = []
 
         # Skip cleaning (use for better performance if cleaning is done on read())
-        if "skip_read_cleaning" in kwargs and kwargs["skip_read_cleaning"]:
+        if self.skip_read_cleaning:
+            print("HEHEHE", kwargs["timezone"])
             if kwargs["timezone"] == "UTC": return data
             for record in data: record["t"] = parse_date_to_string(record["t"], kwargs["timezone"])
             return data
