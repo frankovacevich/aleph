@@ -251,6 +251,7 @@ class Connection:
                              this will compare the values the read returns with previous values, and remove
                              values that haven't changed. It works better if persistence is True.
 
+        cleaned: if arguments have already been cleaned
 
         """
         # If cleaned flag is set, do nothing

@@ -1,3 +1,13 @@
+"""
+This database connection only stores time series data
+It supports the following kwargs:
+- fields
+- order
+- limit
+- offset
+- filter
+"""
+
 import pymongo
 from ..interfaces import MongoDBInterfaceConnection
 from ....common.database_field_parse import *
@@ -12,10 +22,11 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         kwargs["skip_read_cleaning"] = True
         key = db_parse_key(key)
 
-        # Prepare filter
-        find_filter = DataFilter.load(kwargs["filter"]).to_mongodb_filter()
+        # Prepare filter (time and filter)
+        time_filter = {"t": {"$gte": kwargs["since"], "$lte": kwargs["until"]}}
+        find_filter = {"$and": [time_filter, DataFilter.load(kwargs["filter"]).to_mongodb_filter()]}
 
-        # Prepare projection
+        # Prepare projection (fields)
         projection = None
         if args["fields"] != "*":
             projection = {x: True for x in args["fields"]}
@@ -36,8 +47,6 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         found = found.sort([sorting_field, sorting_order])
 
         return list(found)
-
-    # ===================================================================================
 
     def write(self, key, data):
         collection = self.client[self.database][db_parse_key(key)]  # [database][collection]
