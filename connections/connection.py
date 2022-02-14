@@ -284,10 +284,10 @@ class Connection:
 
         if "since" in kwargs: args["since"] = parse_date(kwargs["since"])
         if "until" in kwargs: args["until"] = parse_date(kwargs["until"])
-        if "limit" in kwargs: args["limit"] = int(args["limit"])
+        if "limit" in kwargs: args["limit"] = int(kwargs["limit"])
         if "offset" in kwargs: args["offset"] = int(kwargs["offset"])
         if "timezone" in kwargs: args["timezone"] = kwargs["timezone"]
-        if "order" not in args["fields"] and args["fields"] != "*": args["order"] = "t"
+        if "order" in kwargs: args["order"] = str(kwargs["order"])
         if "filter" in kwargs: args["filter"] = DataFilter.load(kwargs["filter"])
 
         args["cleaned"] = True

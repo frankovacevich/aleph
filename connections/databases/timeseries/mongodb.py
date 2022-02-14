@@ -23,7 +23,6 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)
-
         time_filter = {"t": {"$gte": args["since"], "$lte": args["until"]}}
         find_filter = DataFilter.load(args["filter"]).to_mongodb_filter()
         if find_filter is not None: time_filter = {"$and": [time_filter, find_filter]}
@@ -46,7 +45,7 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         # Get data from collection
         collection = self.client[self.database][key]
         found = collection.find(time_filter, projection=projection, limit=args["limit"], skip=args["offset"])
-        #found = found.sort([sorting_field, sorting_order])
+        found = found.sort([(sorting_field, sorting_order)])
 
         return list(found)
 
