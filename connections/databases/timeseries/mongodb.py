@@ -1,11 +1,5 @@
 """
 This database connection only stores time series data
-It supports the following kwargs:
-- fields
-- order
-- limit
-- offset
-- filter
 """
 
 import pymongo
@@ -25,7 +19,7 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         # Prepare filter (time and filter)
         time_filter = {"t": {"$gte": args["since"], "$lte": args["until"]}}
         find_filter = DataFilter.load(args["filter"]).to_mongodb_filter()
-        if find_filter is not None: time_filter = {"$and": [time_filter, find_filter]}
+        find_filter = {"$and": [time_filter, find_filter]}
 
         # Prepare projection (fields)
         projection = {}
