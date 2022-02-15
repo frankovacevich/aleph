@@ -41,7 +41,7 @@ class MongoDB(MongoDBInterfaceConnection):
 
         # Get data from collection
         collection = self.client[self.database][key]
-        found = collection.find(find_filter, projection=projection, limit=args["limit"], skip=args["offset"])
+        found = collection.find(filter_, projection=projection, limit=args["limit"], skip=args["offset"])
         found = found.sort([(sorting_field, sorting_order)])
 
         return list(found)
