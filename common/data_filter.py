@@ -16,7 +16,7 @@ class DataFilter:
         if self.filter is None: return ""
 
     def to_mongodb_filter(self):
-        if self.filter is None: return None
+        if self.filter is None: return {}
 
     def apply_to(self, record):
         if self.filter is None: return record
