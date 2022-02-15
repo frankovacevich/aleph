@@ -40,26 +40,79 @@ class MongoDBInterfaceConnection(Connection):
 # ===================================================================================
 class MySQLInterfaceConnection(Connection):
 
-    def __init__(self):
-        pass
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.server = "localhost"
+        self.username = ""
+        self.password = ""
+        self.port = 3306
+        self.database = "main"
+
+        # Private
+        self.client = None
 
     def open(self):
-        pass
+        import mysql.connector
+        self.client = mysql.connector.connect(host=self.server,
+                                              port=self.port,
+                                              database=self.database,
+                                              username=self.username,
+                                              password=self.password)
+        super().open()
 
     def close(self):
-        pass
+        self.client.close()
+        super().close()
 
 
 # ===================================================================================
-# InfluxDB
+# Sqlite
 # ===================================================================================
-class InfluxDBInterfaceConnection(Connection):
+class SqliteInterfaceConnection(Connection):
 
-    def __init__(self):
-        pass
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.file = "./main.db"
+
+        # Private
+        self.client = None
 
     def open(self):
-        pass
+        import sqlite3
+        self.client = sqlite3.connect(self.database)
+        super().open()
 
     def close(self):
-        pass
+        self.client.close()
+        super().close()
+
+
+# ===================================================================================
+# Postgres
+# ===================================================================================
+class PostgresInterfaceConnection(Connection):
+
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.server = "localhost"
+        self.username = ""
+        self.password = ""
+        self.port = 5432
+        self.database = "main"
+
+        # Private
+        self.client = None
+
+    def open(self):
+        import psycopg2
+        self.client = psycopg2.connect(database=self.database,
+                                       user=self.username,
+                                       password=self.password,
+                                       host=self.server,
+                                       port=self.port
+                                       )
+        super().open()
+
+    def close(self):
+        self.client.close()
+        super().close()
