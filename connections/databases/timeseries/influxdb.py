@@ -56,7 +56,8 @@ class InfluxDBTimeSeries(Connection):
 
         # Filter
         where_clause = " WHERE " + time_filter
-        data_filter = DataFilter.load(args["filter"]).to_sql_where_clause()
+        data_filter = ""
+        if args["filter"] is not None: data_filter = args["filter"].to_sql_where_clause()
         if data_filter != "": where_clause = " AND (" + data_filter + ")"
 
         # Fields

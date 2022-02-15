@@ -25,7 +25,8 @@ class MongoDBTimeSeries(MongoDBInterfaceConnection):
         elif args["until"] is not None:
             time_filter = {"t": {"$lte": args["until"]}}
 
-        find_filter = DataFilter.load(args["filter"]).to_mongodb_filter()
+        find_filter = {}
+        if args["filter"] is not None: find_filter = args["filter"].to_mongodb_filter()
         find_filter = {"$and": [time_filter, find_filter]}
 
         # Prepare projection (fields)

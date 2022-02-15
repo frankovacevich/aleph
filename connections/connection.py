@@ -303,7 +303,6 @@ class Connection:
 
         # Skip cleaning (use for better performance if cleaning is done on read())
         if self.skip_read_cleaning:
-            print("HEHEHE", kwargs["timezone"])
             if kwargs["timezone"] == "UTC": return data
             for record in data: record["t"] = parse_date_to_string(record["t"], kwargs["timezone"])
             return data
@@ -315,7 +314,7 @@ class Connection:
             # Check if not stale
             if not self.accept_stale_messages and not kwargs["since"] <= record["t"] <= kwargs["until"]: continue
             # Filter
-            if kwargs["filter"] is not None: record = kwargs["filter"].apply_to(record)
+            if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record): continue
             # Fields
             if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f =="id_"}
             # Check if record is not empty
