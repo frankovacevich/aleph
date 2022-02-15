@@ -70,9 +70,8 @@ class InfluxDBTimeSeries(Connection):
         elif args["order"] == "-t": sorting_clause = " ORDER BY time DESC"
         else: sorting_clause = ""
 
+        # Run query
         query = "SELECT " + fields + ", time as t FROM " + key + where_clause + sorting_clause + limit_and_offset
-
-        print(query)
         q = list(self.client.query(query))
         if len(q) == 0: return []
 
