@@ -19,7 +19,14 @@ class MongoDB(MongoDBInterfaceConnection):
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)
-        time_filter = {"t": {"$gte": args["since"], "$lte": args["until"]}}
+        time_filter = {}
+        if args["since"] is not None and args["until"] is not None:
+            time_filter = {"t": {"$gte": args["since"], "$lte": args["until"]}}
+        elif args["since"] is not None:
+            time_filter = {"t": {"$gte": args["since"]}}
+        elif args["until"] is not None:
+            time_filter = {"t": {"$lte": args["until"]}}
+
         find_filter = DataFilter.load(args["filter"]).to_mongodb_filter()
         deleted_filter = {"deleted_": False}
         filter_ = {"$and": [time_filter, find_filter, deleted_filter]}
