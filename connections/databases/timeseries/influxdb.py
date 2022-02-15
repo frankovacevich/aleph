@@ -49,7 +49,10 @@ class InfluxDBTimeSeries(Connection):
         # Time filter
         since = args["since"].strftime('%Y-%m-%dT%H:%M:%SZ')
         until = args["until"].strftime('%Y-%m-%dT%H:%M:%SZ')
-        time_filter = "time >= '" + since + "' AND time <= '" + until + "'"
+        if since is not None and until is not None: time_filter = "time >= '" + since + "' AND time <= '" + until + "'"
+        elif since is not None: time_filter = "time >= '" + since + "'"
+        elif until is not None: time_filter = "time <= '" + until + "'"
+        else: time_filter = ""
 
         # Filter
         where_clause = " WHERE " + time_filter
@@ -91,21 +94,9 @@ class InfluxDBTimeSeries(Connection):
     def __add_to_buffer__(self, key, record):
         record_ = {}
         for field in record:
-            v = self.__check_value__(record[field])
+            v = db_check_value(record[field])
             if v is None: continue
             record_[field] = v
 
         influx_record = {"measurement": db_parse_key(key), "tags": {}, "fields": record_, "time": record_["t"]}
         self.data_buffer.append(influx_record)
-
-    # ===================================================================================
-    # Aux
-    # ===================================================================================
-
-    @staticmethod
-    def __check_value__(v):
-        if isinstance(v, float):
-            if math.isinf(v) or math.isnan(v): return None
-        if isinstance(v, int):
-            return float(v)
-        return v

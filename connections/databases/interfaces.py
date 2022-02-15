@@ -79,7 +79,7 @@ class SqliteInterfaceConnection(Connection):
 
     def open(self):
         import sqlite3
-        self.client = sqlite3.connect(self.database)
+        self.client = sqlite3.connect(self.file)
         super().open()
 
     def close(self):
