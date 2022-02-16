@@ -10,7 +10,7 @@ from ....common.database_field_parse import *
 from ....common.data_filter import DataFilter
 
 
-class InfluxDBTimeSeries(Connection):
+class InfluxDBTimeSeriesConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)

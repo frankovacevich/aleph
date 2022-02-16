@@ -3,11 +3,11 @@
 """
 
 # Type
+# Required
 # HTML:
 # HtmlInputType
 # Help text
 # Default value
-
 
 # Possible:
 # - Primary key (other than id_)?
@@ -35,8 +35,6 @@ class HtmlInputTypes:
     CHECKBOX = 12,          # Bool
 
 
-
-
 class DataModel:
 
     def __init__(self):
@@ -47,3 +45,15 @@ class DataModel:
 
     def load(self, field_types):
         pass
+
+
+class DataField:
+
+    def __init__(self, field_type):
+        self.field_type = field_type
+        self.required = True
+        self.default_value = None
+
+        self.html_input_type = HtmlInputTypes.TEXT
+        self.html_text = ""
+        self.html_

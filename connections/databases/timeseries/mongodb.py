@@ -8,7 +8,7 @@ from ....common.database_field_parse import *
 from ....common.data_filter import DataFilter
 
 
-class MongoDBTimeSeries(MongoDBInterfaceConnection):
+class MongoDBTimeSeriesConnection(MongoDBInterfaceConnection):
 
     def read(self, key, **kwargs):
         # Parse args and key
