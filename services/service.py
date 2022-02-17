@@ -7,11 +7,11 @@ class Service:
 
     def __init__(self):
         self.namespace_connection = NamespaceConnection()
-        self.conn = Connection()
+        self.connection = Connection()
 
         self.read_request_keys = []
         self.namespace_subs_keys = []
-        self.main_conn_subs_keys = []
+        self.connection_subs_keys = []
 
     # ===================================================================================
     # Read request callback (don't edit)
@@ -59,10 +59,13 @@ class Service:
     def run(self):
         self.setup()
 
-        for key in self.read_request_keys:
-            self.namespace_connection.mqtt_conn.subscribe_topics.append(self.namespace_connection.key_to_topic(key, "r"))
-
         self.namespace_connection.__on_new_read_request__ = self.__on_new_read_request__
+        self.namespace_connection.on_new_data = self.on_new_data_from_namespace
+        self.connection.on_new_data = self.on_new_data_from_connection
+
+        for key in self.read_request_keys: self.namespace_connection.subscribe_async(key)
+        for key in self.namespace_subs_keys: self.namespace_connection.subscribe_async(key)
+        for key in self.connection_subs_keys: self.namespace_connection.subscribe_async(key)
 
         while True:
             pass

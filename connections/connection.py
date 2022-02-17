@@ -114,7 +114,7 @@ class Connection:
         If there is an error, the on_read_error method is executed
         """
         try:
-            # Oopen connection
+            # Open connection
             if not self.connected(): self.open()
             # Clean arguments and read data
             args = self.__clean_read_args__(key, **kwargs)
@@ -355,7 +355,7 @@ class Connection:
             # Flatten record
             record = flatten_dict(record)
             # Check model
-            if key in self.models: self.models[key].validate(record)
+            if key in self.models: self.models[key].safe_validate(record)
             # Check report by exception
             if self.report_by_exception: record = self.__check_report_by_exception__(key, record)
             # Check that record is not empty

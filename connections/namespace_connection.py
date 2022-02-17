@@ -10,12 +10,18 @@ class NamespaceConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__()
-        self.mqtt_conn = MqttConnection(client_id)
-        self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
+        self.client_id = client_id
+        self.username = ""
+        self.password = ""
+        self.broker_address = "localhost"
+        self.port = 1883
+        self.tls_enabled = True
+
         self.read_timeout = 10
         self.store_and_forward = True
 
         # Aux
+        self.mqtt_conn = None
         self.sync_read_topic = None
         self.sync_read_data = None
 
@@ -23,7 +29,11 @@ class NamespaceConnection(Connection):
     # Main functions
     # ===================================================================================
     def open(self):
+        self.mqtt_conn = MqttConnection(self.client_id)
+        self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
+        self.mqtt_conn.persistent = self.persistent
         self.mqtt_conn.loop_async()
+
         super().open()
 
     def close(self):
