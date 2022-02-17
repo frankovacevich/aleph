@@ -16,8 +16,8 @@ class MqttConnection:
         self.qos = 1
         self.certificates_folder = ""
         self.tls_enabled = False
-        self.username = "a"
-        self.password = "1231"
+        self.username = ""
+        self.password = ""
         self.subscribe_topics = []
         self.subscribe_single_topics = []
         self.keepalive = 60
