@@ -11,10 +11,10 @@ import json
 class LocalStorage:
 
     class Pre:
-        SNF_BUFFER = "snf_buffer"
-        LAST_RECORD_SENT = "last_record"
-        LAST_TIME_READ = "last_time"
-        PAST_VALUES = "past_values"
+        SNF_BUFFER = "_snf_buffer"
+        LAST_RECORD_SENT = "_last_record"
+        LAST_TIME_READ = "_last_time"
+        PAST_VALUES = "_past_values"
 
     def __init__(self):
         self.data = {}
@@ -27,9 +27,9 @@ class LocalStorage:
     def load(self):
         pass
 
-    def get(self, key):
+    def get(self, key, null_value=None):
         key = self.pkey(key)
-        if key not in self.data: return None
+        if key not in self.data: return null_value
         return self.data[key]
 
     def set(self, key, value):
@@ -42,12 +42,12 @@ class LocalStorage:
         except:
             pass
 
-    def safe_get(self, key):
+    def safe_get(self, key, null_value=None):
         try:
-            return self.get(key)
+            return self.get(key, null_value)
         except:
             key = self.pkey(key)
-            if key not in self.data: return None
+            if key not in self.data: return null_value
             return self.data[key]
 
     def safe_set(self, key, value):
@@ -72,8 +72,8 @@ class FileLocalStorage(LocalStorage):
         self.data = json.loads(f.read())
         f.close()
 
-    def get(self, key):
-        return super().get(key)
+    def get(self, key, null_value=None):
+        return super().get(key, null_value)
 
     def set(self, key, value):
         f = open(self.file, "w+")
@@ -95,7 +95,7 @@ class SqliteDictLocalStorage(LocalStorage):
         from sqlitedict import SqliteDict
         self.sqlitedict = SqliteDict(self.file, autocommit=True)
 
-    def get(self, key):
+    def get(self, key, null_value=None):
         return self.sqlitedict[self.pkey(key)]
         
     def set(self, key, value):
@@ -115,7 +115,7 @@ class RedisLocalStorage(LocalStorage):
         import redis
         self.red = redis.Redis(host='localhost', port=6379, db=0)
 
-    def get(self, key):
+    def get(self, key, null_value=None):
         return self.red.get(self.pkey(key))
 
     def set(self, key, value):
