@@ -1,49 +1,41 @@
 import traceback
 
 
-def get_error_message(exception):
-    return repr(exception)
+class Exceptions:
+
+    # Connections
+    class ReadError(Exception): pass
+    class WriteError(Exception): pass
+    class ConnectionNotOpen(Exception): pass
+
+    # Services
+    class ServiceInitError(Exception): pass
 
 
-def get_error_and_traceback_message(exception):
-    return repr(exception) + "\n\n" + traceback.format_exc()
+class Error:
+    """
+    Class for error handling.
+    """
 
+    def __init__(self, exception, **kwargs):
+        self.exception = exception
+        self.args = kwargs
 
-# ===================================================================================
-# Connections
-# ===================================================================================
+    def message(self):
+        args_str = "".join([str(x).title() + ": " + str(self.args[x]) + "\n" for x in self.args])
+        return repr(self.exception) + "\n" + self.args
 
-class ConnectionNotOpenException(Exception):
-    pass
+    def traceback(self):
+        return traceback.format_exc()
 
+    def message_and_traceback(self):
+        return self.message() + "\n\n" + self.traceback()
 
-class ConnectionOpenException(Exception):
-    pass
+    def raise_exception(self):
+        raise self.exception
 
+    def __str__(self):
+        return self.message_and_traceback()
 
-class ConnectionReadTimeoutException(Exception):
-    pass
-
-
-class ConnectionWriteException(Exception):
-    pass
-
-
-# ===================================================================================
-# MQTT
-# ===================================================================================
-
-class MqttConnectionTimeoutException(Exception):
-    pass
-
-
-class MqttConnectionSingleSubscribeTimeoutException(Exception):
-    pass
-
-
-# ===================================================================================
-# Files
-# ===================================================================================
-
-class FileDoesNotExist(Exception):
-    pass
+    @staticmethod
+    def connection_error(e): return Error(e)
