@@ -18,7 +18,7 @@ class SQLGenericDB:
 
         if self.dbs == "sqlite":
             sql = 'CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY AUTOINCREMENT, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
-        elif self.dbs == "mariadb":
+        elif self.dbs == "mariadb" or self.dbs == "mysql":
             sql = 'CREATE TABLE IF NOT EXISTS metadata (id INT NOT NULL AUTO_INCREMENT, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`))'
         elif self.dbs == "postgres":
             sql = 'CREATE TABLE IF NOT EXISTS metadata (id BIGSERIAL PRIMARY KEY, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT \'\', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
@@ -35,32 +35,41 @@ class SQLGenericDB:
         key = db_parse_key(key)
 
         # Time filter
-        since = args["since"].strftime('%Y-%m-%dT%H:%M:%SZ')
-        until = args["until"].strftime('%Y-%m-%dT%H:%M:%SZ')
-        time_filter = "t >= '" + since + "' AND t <= '" + until + "'"
+        since = args.pop("since", None)
+        until = args.pop("until", None)
+        if since is None and until is None: time_filter = ""
+        elif since is not None: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        elif until is not None: time_filter = "t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        else: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "' AND t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
 
         # Filter
         where_clause = " WHERE " + time_filter
+        args_filter = args.pop("filter", None)
         data_filter = ""
-        if args["filter"] is not None: data_filter = args["filter"].to_sql_where_clause()
+        if args_filter is not None: data_filter = args_filter.to_sql_where_clause()
         if data_filter != "": where_clause = " AND (" + data_filter + ")"
         where_clause += " AND deleted_ IS NOT TRUE"
 
         # Fields
-        fields = args["fields"]
+        fields = args.pop("fields", "*")
         if fields != "*": fields = ",".join(fields)
 
         # Limit and offset
         limit_and_offset = ""
-        if args["limit"] != 0: limit_and_offset = " LIMIT " + str(args["limit"])
-        if args["offset"] != 0: limit_and_offset = " OFFSET " + str(args["offset"])
+        limit = args.pop("limit", 0)
+        offset = args.pop("offset", 0)
+        if limit != 0: limit_and_offset = " LIMIT " + str(limit)
+        if offset != 0: limit_and_offset = " OFFSET " + str(offset)
 
         # Order: influx only supports sorting by time
-        if args["order"][0] == "-": sorting_clause = " ORDER BY " + args["order"][1:] + " DESC"
-        else: sorting_clause = " ORDER BY " + args["order"] + " ASC"
+        order = args.pop("order", None)
+        if order is None: sorting_clause = ""
+        elif order[0] == "-": sorting_clause = " ORDER BY " + order[1:] + " DESC"
+        else: sorting_clause = " ORDER BY " + order + " ASC"
 
         # Run query
         query = "SELECT " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
+        print(query)
         cur = self.client.cursor()
         cur.execute(query)
 
@@ -95,6 +104,7 @@ class SQLGenericDB:
         cur.close()
 
     def write_one(self, cur, key, record):
+        record["t"] = record["t"].replace("T", " ").replace("Z", "")
         record["t_"] = record["t"]
         org_key = key
         key = db_parse_key(key)

@@ -47,31 +47,35 @@ class InfluxDBTimeSeriesConnection(Connection):
         key = db_parse_key(key)
 
         # Time filter
-        since = args["since"].strftime('%Y-%m-%dT%H:%M:%SZ')
-        until = args["until"].strftime('%Y-%m-%dT%H:%M:%SZ')
-        if since is not None and until is not None: time_filter = "time >= '" + since + "' AND time <= '" + until + "'"
-        elif since is not None: time_filter = "time >= '" + since + "'"
-        elif until is not None: time_filter = "time <= '" + until + "'"
-        else: time_filter = ""
+        since = args.pop("since", None)
+        until = args.pop("until", None)
+        if since is None and until is None: time_filter = ""
+        elif since is not None: time_filter = "time >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        elif until is not None: time_filter = "time <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        else: time_filter = "time >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "' AND time <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
 
         # Filter
         where_clause = " WHERE " + time_filter
         data_filter = ""
-        if args["filter"] is not None: data_filter = args["filter"].to_sql_where_clause()
+        args_filter = args.pop("filter", None)
+        if args_filter is not None: data_filter = args_filter.to_sql_where_clause()
         if data_filter != "": where_clause = " AND (" + data_filter + ")"
 
         # Fields
-        fields = args["fields"]
+        fields = args.pop("fields", "*")
         if fields != "*": fields = ",".join(fields)
 
         # Limit and offset
         limit_and_offset = ""
-        if args["limit"] != 0: limit_and_offset = " LIMIT " + str(args["limit"])
-        if args["offset"] != 0: limit_and_offset = " OFFSET " + str(args["offset"])
+        limit = args.pop("limit", 0)
+        offset = args.pop("offset", 0)
+        if limit != 0: limit_and_offset = " LIMIT " + str(limit)
+        if offset != 0: limit_and_offset = " OFFSET " + str(offset)
 
         # Order: influx only supports sorting by time
-        if args["order"] == "t": sorting_clause = " ORDER BY time ASC"
-        elif args["order"] == "-t": sorting_clause = " ORDER BY time DESC"
+        order = args.pop("order", "t")
+        if order == "t": sorting_clause = " ORDER BY time ASC"
+        elif order == "-t": sorting_clause = " ORDER BY time DESC"
         else: sorting_clause = ""
 
         # Run query

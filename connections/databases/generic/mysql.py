@@ -4,8 +4,8 @@ from .sql_generic import SQLGenericDB
 
 class MySQLGenericConnection(MySQLInterfaceConnection):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
         self.generic_engine = SQLGenericDB("mysql", self.client)
 
     # ===================================================================================
