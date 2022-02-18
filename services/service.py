@@ -1,13 +1,11 @@
-from ..connections.namespace_connection import NamespaceConnection
-from ..connections.connection import Connection
 from ..common.exceptions import *
 
 
 class Service:
 
     def __init__(self):
-        self.namespace_connection = NamespaceConnection()
-        self.connection = Connection()
+        self.namespace_connection = None
+        self.connection = None
 
         self.read_request_keys = []
         self.namespace_subs_keys = []
@@ -17,7 +15,7 @@ class Service:
     # Read request callback (don't edit)
     # ===================================================================================
     def __on_new_read_request__(self, topic, message):
-        key = "unknown"
+        key = topic
 
         try:
             # Get key and arguments
@@ -33,16 +31,16 @@ class Service:
             self.namespace_connection.mqtt_conn.publish(response_topic, response_message)
 
         except Exception as e:
-            self.on_read_request_error(key, get_error_and_traceback_message(e))
+            self.on_read_request_error(key, Error(e))
 
     # ===================================================================================
-    # Override me
+    # Main events (override me)
     # ===================================================================================
-    def on_read_request(self, key, **kwargs):
-        return self.conn.safe_read(key, **kwargs)
-
-    def on_read_request_error(self, key, error_message):
+    def setup(self):
         return
+
+    def on_read_request(self, key, **kwargs):
+        return self.connection.safe_read(key, **kwargs)
 
     def on_new_data_from_namespace(self, key, data):
         pass
@@ -50,7 +48,22 @@ class Service:
     def on_new_data_from_connection(self, key, data):
         pass
 
-    def setup(self):
+    # ===================================================================================
+    # Error handling (override me)
+    # ===================================================================================
+    def on_connection_read_error(self, key, error):
+        return
+
+    def on_connection_write_error(self, key, error):
+        return
+
+    def on_namespace_read_error(self, key, error):
+        return
+
+    def on_namespace_write_error(self, key, error):
+        return
+
+    def on_read_request_error(self, key, error):
         return
 
     # ===================================================================================
@@ -63,9 +76,17 @@ class Service:
         self.namespace_connection.on_new_data = self.on_new_data_from_namespace
         self.connection.on_new_data = self.on_new_data_from_connection
 
-        for key in self.read_request_keys: self.namespace_connection.subscribe_async(key)
+        self.namespace_connection.open()
+        self.connection.open()
+
+        for key in self.read_request_keys: self.namespace_connection.__subscribe_to_read_requests__(key)
         for key in self.namespace_subs_keys: self.namespace_connection.subscribe_async(key)
-        for key in self.connection_subs_keys: self.namespace_connection.subscribe_async(key)
+        for key in self.connection_subs_keys: self.connection.subscribe_async(key)
+
+        self.namespace_connection.on_read_error = self.on_namespace_read_error
+        self.namespace_connection.on_write_error = self.on_namespace_write_error
+        self.connection.on_read_error = self.on_connection_read_error
+        self.connection.on_write_error = self.on_connection_write_error
 
         while True:
             pass
