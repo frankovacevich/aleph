@@ -56,7 +56,7 @@ class MySQLInterfaceConnection(Connection):
         self.client = mysql.connector.connect(host=self.server,
                                               port=self.port,
                                               database=self.database,
-                                              username=self.username,
+                                              user=self.username,
                                               password=self.password)
         super().open()
 
