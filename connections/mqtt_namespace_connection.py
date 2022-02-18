@@ -6,7 +6,7 @@ from ..common.mqtt_connection import MqttConnection
 from ..common.exceptions import *
 
 
-class NamespaceConnection(Connection):
+class MqttNamespaceConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__()
@@ -15,7 +15,13 @@ class NamespaceConnection(Connection):
         self.password = ""
         self.broker_address = "localhost"
         self.port = 1883
-        self.tls_enabled = True
+        self.tls_enabled = False
+        self.certificates_folder = ""
+
+        self.birth_topic = None
+        self.birth_message = None
+        self.last_will_topic = None
+        self.last_will_message = None
 
         self.read_timeout = 10
         self.store_and_forward = True
@@ -29,16 +35,33 @@ class NamespaceConnection(Connection):
     # Main functions
     # ===================================================================================
     def open(self):
-        self.mqtt_conn = MqttConnection(self.client_id)
-        self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
-        self.mqtt_conn.persistent = self.persistent
-        self.mqtt_conn.loop_async()
+        if self.mqtt_conn is not None: return
 
-        super().open()
+        self.mqtt_conn = MqttConnection(self.client_id)
+        self.mqtt_conn.username = self.username
+        self.mqtt_conn.password = self.password
+        self.mqtt_conn.broker_address = self.broker_address
+        self.mqtt_conn.port = self.port
+        self.mqtt_conn.tls_enabled = self.tls_enabled
+        self.mqtt_conn.certificates_folder = self.certificates_folder
+
+        self.mqtt_conn.persistent = self.persistent
+        self.mqtt_conn.birth_message = self.birth_message
+        self.mqtt_conn.birth_topic = self.birth_topic
+        self.mqtt_conn.last_will_topic = self.last_will_topic
+        self.mqtt_conn.last_will_message = self.last_will_message
+        self.mqtt_conn.on_disconnect = self.on_disconnect
+        self.mqtt_conn.on_connect = self.on_connect
+        self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
+
+        self.mqtt_conn.loop_async()
 
     def close(self):
         self.mqtt_conn.disconnect()
-        super().close()
+
+    def connected(self):
+        if self.mqtt_conn is None: return False
+        return self.mqtt_conn.connected
 
     def write(self, key, data):
         topic = self.key_to_topic(key, "w")
@@ -74,32 +97,25 @@ class NamespaceConnection(Connection):
     # Subscribe and read async (error handling is done on __on_new_mqtt_message__)
     # ===================================================================================
     def subscribe(self, key, time_step=None):
+        if not self.connected(): self.open()
+
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
         while topic in self.mqtt_conn.subscribe_topics: pass
 
     def read_async(self, key, **kwargs):
+        if not self.connected(): self.open()
         response_code = self.__generate_read_request__(key, **kwargs)
         response_topic = self.key_to_topic(key, response_code)
         self.mqtt_conn.subscribe_single(response_topic)
 
     def subscribe_async(self, key, time_step=None):
+        if not self.connected(): self.open()
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
 
     def unsubscribe(self, key):
         self.mqtt_conn.unsubscribe(self.key_to_topic(key))
-
-    # ===================================================================================
-    # Birth and last will
-    # ===================================================================================
-    def set_birth_message(self, key, data):
-        self.mqtt_conn.birth_topic = self.key_to_topic(key)
-        self.mqtt_conn.birth_message = self.data_to_mqtt_message(data)
-
-    def set_last_will(self, key, data):
-        self.mqtt_conn.last_will_topic = self.key_to_topic(key)
-        self.mqtt_conn.last_will_message = self.data_to_mqtt_message(data)
 
     # ===================================================================================
     # Private
@@ -118,8 +134,11 @@ class NamespaceConnection(Connection):
             data = self.mqtt_message_to_data(message)
             # Response to read request
             if topic == self.sync_read_topic: self.sync_read_data = data
-            # New data
-            clean_data = self.__clean_read_data__(key, data)
+            # Get new data
+            args = self.__clean_read_args__(key)
+            clean_data = self.__clean_read_data__(key, data, **args)
+            if len(clean_data) == 0: return
+            # Callback
             self.on_new_data(key, clean_data)
 
         except Exception as e:
@@ -139,6 +158,10 @@ class NamespaceConnection(Connection):
         self.mqtt_conn.publish(topic, message)
         # Return response topic
         return request["response_code"]
+
+    def __subscribe_to_read_requests__(self, key):
+        topic = self.key_to_topic(key, "r")
+        self.mqtt_conn.subscribe(topic)
 
     # ===================================================================================
     # Aux

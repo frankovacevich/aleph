@@ -33,6 +33,7 @@ class MqttConnection:
         self.last_will_message = None
 
         self.connected = False
+        self.connecting = False
         self.mqtt_client = None
 
         self.__single_subscribe_topic__ = None
@@ -45,6 +46,7 @@ class MqttConnection:
 
     def __on_connect__(self, client, userdata, flags, rc):
         self.connected = True
+        self.connecting = False
 
         for topic in self.subscribe_topics:
             self.mqtt_client.subscribe(topic, qos=self.qos)
@@ -57,6 +59,7 @@ class MqttConnection:
 
     def __on_disconnect__(self, client, userdata, rc):
         self.connected = False
+        self.connecting = False
 
         if self.on_disconnect is not None:
             self.on_disconnect()
@@ -100,6 +103,8 @@ class MqttConnection:
             )
 
     def connect(self, timeout=0):
+        if self.connecting: return
+        self.connecting = True
         self.__setup__()
         t0 = time.time()
         while not self.connected:
@@ -113,6 +118,8 @@ class MqttConnection:
         self.mqtt_client = None
 
     def connect_async(self):
+        if self.connecting: return
+        self.connecting = True
         self.mqtt_client.connect_async(self.broker_address, self.port, keepalive=self.keepalive)
 
     # ===================================================================================
@@ -130,7 +137,9 @@ class MqttConnection:
 
     def loop_async(self):
         self.__setup__()
-        self.mqtt_client.connect_async(self.broker_address, self.port, keepalive=self.keepalive)
+        if not self.connecting:
+            self.connecting = True
+            self.mqtt_client.connect_async(self.broker_address, self.port, keepalive=self.keepalive)
         # The loop start method will handle reconnection automatically
         self.mqtt_client.loop_start()
 
