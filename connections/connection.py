@@ -4,10 +4,7 @@ from ..common.wait_one_step import WaitOneStep
 from ..common.dict_functions import *
 from ..common.local_storage import LocalStorage
 from ..common.data_filter import DataFilter
-
 import threading
-import os
-import json
 
 
 class Connection:
@@ -15,19 +12,24 @@ class Connection:
     def __init__(self, client_id=""):
 
         # Optional parameters
-        self.client_id = client_id               # Assign the connection a client id
-        self.report_by_exception = False         # When reading data, only returns changing values
-        self.models = {}                         # Dict {key: Model} (for data validation)
-        self.persistent = True                   # Remembers last record read (equivalent to mqtt clean session = False)
-        self.store_and_forward = False           # Resends failed writes
-        self.local_storage = LocalStorage()      # Local storage
-        self.accept_stale_messages = False       # Include stale messages when subscribed (see docs)
+        self.client_id = client_id                # Assign the connection a client id (required if persistent = True)
+        self.local_storage = LocalStorage()       # Local storage instance
+
+        # Optional parameters: reading
+        self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
+        self.compare_to_previous_on_read = False  # Use on read function to compare values after reading (see docs)
+        self.check_filters_on_read = True         # Check if fields, filter, limit, offset and order are correct
+        self.check_timestamp_on_read = True       # Check if record time is between since and until
+
+        # Optional parameters: writing
+        self.models = {}                          # Dict {key: Model} (for data validation)
+        self.report_by_exception = False          # When reading data, only returns changing values
+        self.store_and_forward = False            # Resends failed writes
+        self.include_time_on_write = True         # Automatically adds the current timestamp when writing
 
         # Internal
         self.__connected__ = False
         self.__unsubscribe_flags__ = {}
-        self.compare_to_previous = False         # Use on read function to compare values after reading (see docs)
-        self.skip_read_cleaning = False          # Use on read function to skip clean_read_data() (see docs)
 
     # ===================================================================================
     # Main functions (override me)
@@ -92,7 +94,9 @@ class Connection:
         Callback function called after open(). If overridden, use super().on_connect()
         """
         self.__connected__ = True
-        if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+        # if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+
+        # If not persistent wipe out last times
         if not self.persistent: self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, {})
         return
 
@@ -121,13 +125,13 @@ class Connection:
             # Call read function
             data = self.read(key, **args)
             # Compare to past values
-            if self.compare_to_previous: data = self.__compare_to_previous__(data)
-            # Clean and return
+            if self.compare_to_previous_on_read: data = self.__compare_to_previous__(data)
+            # Clean data
             data = self.__clean_read_data__(key, data, **args)
             return data
 
         except Exception as e:
-            self.on_read_error(key, get_error_and_traceback_message(e))
+            self.on_read_error(key, Error(e, client_id=self.client_id))
             return []
 
     def safe_write(self, key, data):
@@ -139,18 +143,18 @@ class Connection:
         try:
             data = self.__clean_write_data__(key, data)
         except Exception as e:
-            self.on_write_error(key, get_error_and_traceback_message(e))
+            self.on_write_error(key, Error(e, client_id=self.client_id))
             return False
 
         # Write data
         try:
             if not self.connected(): self.open()
             self.write(key, data)
-            self.__store_and_forward_flush_buffer__()
+            if self.store_and_forward: self.__store_and_forward_flush_buffer__()
             return True
         except Exception as e:
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
-            self.on_write_error(key, get_error_and_traceback_message(e))
+            self.on_write_error(key, Error(e, client_id=self.client_id))
             return False
 
     # ===================================================================================
@@ -165,9 +169,14 @@ class Connection:
         w = WaitOneStep(time_step)
         t = w.step(0)
         while True:
+            # Break loop if unsubscribed
             if not self.__unsubscribe_flags__[key]: break
+            # Sleep
             t = w.step(t)
+            # Read data
             data = self.safe_read(key)
+            if len(data) == 0: continue
+            # Callback
             self.on_new_data(key, data)
 
     def __read_async_aux__(self, key, **kwargs):
@@ -206,14 +215,14 @@ class Connection:
                 Cleaned: "*" or list of string
 
         since: timestamp.
-               Default: self.last_record_sent["t"]
-               Accepts: int (days from today or unix), string (parseable datetime format), empty string (today at 00:00),
+               Default: timestamp of the last record read or now()
+               Accepts: int (seconds from today or unix), string (parseable format), empty string (today at 00:00),
                         datetime.datetime, None (since the beginning of time)
                Cleaned: datetime.datetime (with tzinfo=UTC) or None
 
         until: timestamp.
                Default: None
-               Accepts: int (days from today or unix), string (parseable datetime format), empty string (tomorrow),
+               Accepts: int (days from today or unix), string (parseable format), empty string (tomorrow at 00:00),
                         datetime.datetime, None (this moment)
                Cleaned: datetime.datetime (with tzinfo=UTC) or None
 
@@ -233,9 +242,9 @@ class Connection:
                   Cleaned string
 
         order: order by some field
-               Default: "t"
+               Default: None
                Accepts: string (field). Place a "-" in front of the field for reversed order (like "-t")
-               Cleaned: string
+               Cleaned: string or None
 
         filter: return only data matching a filter.
                 Default: None
@@ -250,10 +259,10 @@ class Connection:
         # If cleaned flag is set, do nothing
         if "cleaned" in kwargs and kwargs["cleaned"]: return kwargs
 
-        # Get last read time
-        last_t = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_TIME_READ)
-        if last_t is not None and key in last_t: last_t = last_t[key]
-        else: last_t = now()
+        # Get and set last read time
+        last_times = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_TIME_READ, {})
+        last_t = last_times.pop(key, now())
+        last_times[key] = now()
 
         # Preset args
         args = {
@@ -263,7 +272,7 @@ class Connection:
             "limit": 0,
             "offset": 0,
             "timezone": "UTC",
-            "order": "t",
+            "order": None,
             "filter": None,
             "cleaned": False
         }
@@ -284,54 +293,62 @@ class Connection:
         if "filter" in kwargs: args["filter"] = DataFilter.load(kwargs["filter"])
 
         args["cleaned"] = True
+        self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, last_times)
         return args
 
     def __clean_read_data__(self, key, data, **kwargs):
         """
         After reading data, make sure that:
         - Data is list of records
-        - Every record in data has a timestamp (string)
-        - Every record in data has a timestamp (string)
-        - Records are not stale (timestamp is between kwargs since and until)
-        - Check timezone, filter, order, offset and limit from kwargs
-        - Check that records are not empty
+        - Check filter, fields, limit, offset and order
+        - Check that records have a timestamp and the timestamp is between since and until
+        - Check that records have a timestamp and the timestamp is in the right timezone
         """
 
         # Data is list of records
         if not isinstance(data, list): data = [data]
         cleaned_data = []
 
-        # Skip cleaning (use for better performance if cleaning is done on read())
-        if self.skip_read_cleaning:
-            if kwargs["timezone"] == "UTC": return data
-            for record in data: record["t"] = parse_date_to_string(record["t"], kwargs["timezone"])
+        # If no checking needed, return.
+        if not self.check_filters_on_read and not self.check_timestamp_on_read and kwargs["timezone"] == "UTC":
             return data
 
+        # For each record:
         for record in data:
-            # Every record in data has a timestamp
-            if "t" not in record: record["t"] = now()
-            else: record["t"] = parse_date(record["t"])
-            # Check if not stale
-            if not self.accept_stale_messages and not kwargs["since"] <= record["t"] <= kwargs["until"]: continue
-            # Filter
-            if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record): continue
-            # Fields
-            if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f =="id_"}
-            # Check if record is not empty
-            if not self.__check_record_is_not_empty__(record): continue
-            # Change time from datetime to string
-            record["t"] = date_to_string(record["t"], kwargs["timezone"])
+
+            # Check filter and fields
+            if self.check_filters_on_read:
+                if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record): continue
+                if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
+
+            # Check timestamp
+            if self.check_timestamp_on_read:
+                # Record has a timestamp
+                if "t" not in record: record["t"] = now()
+                else: record["t"] = parse_date(record["t"])
+                # Timestamp in valid range
+                if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
+                if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                # Timestamp in timezone
+                record["t"] = date_to_string(record["t"], kwargs["timezone"])
+
+            # Check timestamp is in the correct timezone
+            elif kwargs["timezone"] != "UTC":
+                if "t" not in record: record["t"] = now()
+                record["t"] = parse_date_to_string(record["t"], kwargs["timezone"])
 
             cleaned_data.append(record)
             continue
 
-        # Order
-        if kwargs["order"][0] == "-": cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
-        else: cleaned_data.sort(key=lambda x: x[kwargs["order"]])
+        if self.check_filters_on_read:
+            # Order
+            if kwargs["order"] is not None:
+                if kwargs["order"][0] == "-": cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
+                else: cleaned_data.sort(key=lambda x: x[kwargs["order"]])
 
-        # Limit and offset
-        if len(cleaned_data) > kwargs["offset"] > 0: cleaned_data = cleaned_data[0:-kwargs["offset"]]
-        if len(cleaned_data) > kwargs["limit"] > 0: cleaned_data = cleaned_data[-kwargs["limit"]:]
+            # Limit and offset
+            if len(cleaned_data) > kwargs["offset"] > 0: cleaned_data = cleaned_data[0:-kwargs["offset"]]
+            if len(cleaned_data) > kwargs["limit"] > 0: cleaned_data = cleaned_data[-kwargs["limit"]:]
 
         return cleaned_data
 
@@ -350,7 +367,7 @@ class Connection:
         for record in data:
 
             # Time
-            if "t" not in record: record["t"] = now(string=True)
+            if "t" not in record and self.include_time_on_write: record["t"] = now(string=True)
             else: record["t"] = parse_date_to_string(record["t"])
             # Flatten record
             record = flatten_dict(record)
@@ -367,7 +384,7 @@ class Connection:
         return cleaned_data
 
     def __check_record_is_not_empty__(self, record):
-        if len([x for x in record if x not in ["t", "t_", "deleted_", "ignore_", "id_"]]) > 0: return True
+        if len([x for x in record if x not in ["t", "t_", "ignore_", "id_"]]) > 0: return True
         return False
 
     def __check_report_by_exception__(self, key, record):
@@ -377,18 +394,18 @@ class Connection:
         """
 
         # Get last record sent from local storage
-        last_record = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT)
-        if last_record is None: last_record = {}
-        if key not in last_record: last_record[key] = {}
+        last_records = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT, {})
+        if key not in last_records: last_records[key] = {}
             
         # For each field in record, check if changed
         new_record = {}
         for v in record:
             if v in ["t", "t_", "deleted_", "ignore_", "id_"]: continue
-            if v not in last_record[key] or last_record[key][v] != record[v]: new_record[v] = record[v]
+            if v not in last_records[key] or last_records[key][v] != record[v]: new_record[v] = record[v]
 
         # Store new record to local storage and return
-        self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT, new_record)
+        last_records[key] = record
+        self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT, last_records)
         return new_record
 
     # ===================================================================================
@@ -397,6 +414,7 @@ class Connection:
     def __store_and_forward_add_to_buffer__(self, key, data):
         # Get buffer from local storage
         buffer = self.local_storage.get(self.client_id + LocalStorage.Pre.SNF_BUFFER)
+        if buffer is None: buffer = {}
         
         # Add data to buffer
         if key not in buffer: buffer[key] = []
@@ -408,7 +426,7 @@ class Connection:
     def __store_and_forward_flush_buffer__(self):
         # Get buffer from local storage
         buffer = self.local_storage.get(self.client_id + LocalStorage.Pre.SNF_BUFFER)
-        if len(buffer) == 0: return
+        if buffer is None or len(buffer) == 0: return
 
         # For each record in the buffer, try to write
         new_buffer = {}
@@ -438,6 +456,10 @@ class Connection:
 
         # Get past values
         past_values = self.local_storage.get(self.client_id + LocalStorage.Pre.PAST_VALUES)
+        if past_values is None:
+            # REVISE
+            self.local_storage.set(self.client_id + LocalStorage.Pre.PAST_VALUES, data_as_dict)
+            return []
 
         # Create a list to keep the records that are different from past values
         data_that_changed = []
