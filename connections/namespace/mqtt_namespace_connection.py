@@ -1,9 +1,9 @@
 import json
 import random
 import time
-from .connection import Connection
-from ..common.mqtt_connection import MqttConnection
-from ..common.exceptions import *
+from aleph.connections.connection import Connection
+from aleph.common.mqtt_connection import MqttConnection
+from aleph.common.exceptions import *
 
 
 class MqttNamespaceConnection(Connection):
@@ -25,6 +25,8 @@ class MqttNamespaceConnection(Connection):
 
         self.read_timeout = 10
         self.store_and_forward = True
+        self.check_timestamp_on_read = False
+        self.check_filters_on_read = False
 
         # Aux
         self.mqtt_conn = None
@@ -68,25 +70,23 @@ class MqttNamespaceConnection(Connection):
         message = self.data_to_mqtt_message(data)
 
         r = self.mqtt_conn.publish(topic, message)
-        if r == 1: raise ConnectionWriteException("Connection refused, unacceptable protocol version")
-        elif r == 2: raise ConnectionWriteException("Connection refused, identifier rejected")
-        elif r == 3: raise ConnectionWriteException("Connection refused, server unavailable")
-        elif r == 4: raise ConnectionWriteException("Connection refused, bad username or password")
-        elif r == 5: raise ConnectionWriteException("Connection refused, not authorized")
+        if r == 1: raise Exceptions.WriteError("Connection refused, unacceptable protocol version")
+        elif r == 2: raise Exceptions.WriteError("Connection refused, identifier rejected")
+        elif r == 3: raise Exceptions.WriteError("Connection refused, server unavailable")
+        elif r == 4: raise Exceptions.WriteError("Connection refused, bad username or password")
+        elif r == 5: raise Exceptions.WriteError("Connection refused, not authorized")
         return
 
     def read(self, key, **kwargs):
         # Generate read request
         response_code = self.__generate_read_request__(key, **kwargs)
-        self.sync_read_topic = self.key_to_topic(key, response_code)
-        self.mqtt_conn.subscribe_single(self.sync_read_topic)
 
         # Wait for response
         t = time.time()
         while self.sync_read_data is None:
             if time.time() - t > self.read_timeout:
                 self.sync_read_data = None
-                raise ConnectionReadTimeoutException()
+                raise Exceptions.ReadTimeout()
 
         # Return response
         response = self.sync_read_data
@@ -142,7 +142,7 @@ class MqttNamespaceConnection(Connection):
             self.on_new_data(key, clean_data)
 
         except Exception as e:
-            self.on_read_error(key, get_error_and_traceback_message(e))
+            self.on_read_error(key, Error(e, client_id=self.client_id))
 
     def __on_new_read_request__(self, topic, message):
         return
@@ -150,12 +150,22 @@ class MqttNamespaceConnection(Connection):
     def __generate_read_request__(self, key, **kwargs):
         # Create request message
         request = {"response_code": str(random.randint(0, 999999999))}
+
         # Add parameters
         for kw in kwargs: request[kw] = kwargs[kw]
+        request["cleaned"] = False
+
         # Send request
         topic = self.key_to_topic(key, "r")
         message = self.data_to_mqtt_message(request)
+
+        # Subscribe to response
+        self.sync_read_topic = self.key_to_topic(key, request["response_code"])
+        self.mqtt_conn.subscribe_single(self.sync_read_topic)
+
+        # Publish request
         self.mqtt_conn.publish(topic, message)
+
         # Return response topic
         return request["response_code"]
 
