@@ -280,7 +280,7 @@ class Connection:
         # Fields
         if "fields" in kwargs:
             fields = kwargs["fields"]
-            if fields == "*": args["fields"] = fields
+            if fields == "*" or isinstance(fields, list): args["fields"] = fields
             elif "," in fields: args["fields"] = fields.replace(" ", "").split(",")
             elif isinstance(fields, str): args["fields"] = [fields]
 
@@ -289,8 +289,10 @@ class Connection:
         if "limit" in kwargs: args["limit"] = int(kwargs["limit"])
         if "offset" in kwargs: args["offset"] = int(kwargs["offset"])
         if "timezone" in kwargs: args["timezone"] = kwargs["timezone"]
-        if "order" in kwargs: args["order"] = str(kwargs["order"])
+        if "order" in kwargs: args["order"] = kwargs["order"]
         if "filter" in kwargs: args["filter"] = DataFilter.load(kwargs["filter"])
+
+        if "response_code" in kwargs: args["response_code"] = kwargs["response_code"]
 
         args["cleaned"] = True
         self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, last_times)

@@ -180,7 +180,7 @@ class DataFilter:
         df.parsed_filter = parsed_filter
 
         # TODO: Deparse filter (from JSON to some sort of function)
-        if parsed_filter is None: df.filter = None
+        if parsed_filter is None: return None
         if isinstance(parsed_filter, str): parsed_filter = json.loads(parsed_filter)
 
         df.filter = {}
