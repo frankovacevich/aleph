@@ -21,6 +21,8 @@ class Service:
             # Get key and arguments
             key = self.namespace_connection.topic_to_key(topic)
             args = self.namespace_connection.mqtt_message_to_data(message)
+            args = self.namespace_connection.__clean_read_args__(key, **args)
+            if "response_code" not in args: return
 
             # Generate response
             response_topic = self.namespace_connection.key_to_topic(key, args["response_code"])
@@ -70,8 +72,6 @@ class Service:
     # Use me
     # ===================================================================================
     def run(self):
-        self.setup()
-
         self.namespace_connection.__on_new_read_request__ = self.__on_new_read_request__
         self.namespace_connection.on_new_data = self.on_new_data_from_namespace
         self.connection.on_new_data = self.on_new_data_from_connection
@@ -87,6 +87,8 @@ class Service:
         self.namespace_connection.on_write_error = self.on_namespace_write_error
         self.connection.on_read_error = self.on_connection_read_error
         self.connection.on_write_error = self.on_connection_write_error
+
+        self.setup()
 
         while True:
             pass
