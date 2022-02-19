@@ -281,7 +281,7 @@ class Connection:
         if "fields" in kwargs:
             fields = kwargs["fields"]
             if fields == "*" or isinstance(fields, list): args["fields"] = fields
-            elif "," in fields: args["fields"] = fields.replace(" ", "").split(",")
+            elif "," in fields: args["fields"] = fields.repewlace(" ", "").split(",")
             elif isinstance(fields, str): args["fields"] = [fields]
 
         if "since" in kwargs: args["since"] = parse_date(kwargs["since"])

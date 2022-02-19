@@ -4,10 +4,11 @@ import traceback
 class Exceptions:
 
     # Connections
+    class ConnectionNotOpen(Exception): pass
+    class InvalidKey(Exception): pass
     class ReadError(Exception): pass
     class ReadTimeout(Exception): pass
     class WriteError(Exception): pass
-    class ConnectionNotOpen(Exception): pass
 
     # Services
     class ServiceInitError(Exception): pass
