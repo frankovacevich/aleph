@@ -5,6 +5,7 @@ class Exceptions:
 
     # Connections
     class ReadError(Exception): pass
+    class ReadTimeout(Exception): pass
     class WriteError(Exception): pass
     class ConnectionNotOpen(Exception): pass
 
@@ -23,7 +24,7 @@ class Error:
 
     def message(self):
         args_str = "".join([str(x).title() + ": " + str(self.args[x]) + "\n" for x in self.args])
-        return repr(self.exception) + "\n" + self.args
+        return repr(self.exception) + "\n" + args_str
 
     def traceback(self):
         return traceback.format_exc()
