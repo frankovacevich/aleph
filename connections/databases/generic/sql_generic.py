@@ -34,6 +34,13 @@ class SQLGenericDB:
         args = kwargs
         key = db_parse_key(key)
 
+        # Fields
+        fields = args.pop("fields", "*")
+        if fields != "*": fields = ",".join(fields)
+
+        # We collect all where clauses in a list
+        where_clauses = []
+
         # Time filter
         since = args.pop("since", None)
         until = args.pop("until", None)
@@ -41,18 +48,18 @@ class SQLGenericDB:
         elif since is not None: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "'"
         elif until is not None: time_filter = "t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
         else: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "' AND t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        if time_filter != "": where_clauses.append(time_filter)
 
         # Filter
-        where_clause = " WHERE " + time_filter
         args_filter = args.pop("filter", None)
-        data_filter = ""
-        if args_filter is not None: data_filter = args_filter.to_sql_where_clause()
-        if data_filter != "": where_clause = " AND (" + data_filter + ")"
-        where_clause += " AND deleted_ IS NOT TRUE"
+        if args_filter is not None: where_clauses.append(args_filter.to_sql_where_clause())
+        where_clauses.append("deleted_ IS NOT TRUE")
 
-        # Fields
-        fields = args.pop("fields", "*")
-        if fields != "*": fields = ",".join(fields)
+        # Null filter (select only values that are not null)
+        # TODO
+
+        # Collect all where clauses
+        where_clause = " WHERE " + " AND ".join(where_clauses)
 
         # Limit and offset
         limit_and_offset = ""
@@ -69,7 +76,6 @@ class SQLGenericDB:
 
         # Run query
         query = "SELECT " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
-        print(query)
         cur = self.client.cursor()
         cur.execute(query)
 
@@ -110,7 +116,7 @@ class SQLGenericDB:
         key = db_parse_key(key)
 
         # Get field map
-        sql = "SELECT field, field_id FROM metadata WHERE key_name='" + key + "'"
+        sql = "SELECT field, field_id FROM metadata WHERE key_name='" + org_key + "'"
         cur.execute(sql)
         r = cur.fetchall()
         fmap = {x[0]: x[1] for x in r}
