@@ -77,13 +77,19 @@ class Connection:
         """
         return
 
-    def on_read_error(self, key, error_message):
+    def on_open_error(self, error):
+        """
+        Callback function for when opening fails
+        """
+        return
+
+    def on_read_error(self, error):
         """
         Callback function for when safe_read fails
         """
         return
 
-    def on_write_error(self, key, error_message):
+    def on_write_error(self, error):
         """
         Callback function for when safe_write fails
         """
@@ -94,7 +100,7 @@ class Connection:
         Callback function called after open(). If overridden, use super().on_connect()
         """
         self.__connected__ = True
-        # if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+        if self.store_and_forward: self.__store_and_forward_flush_buffer__()
 
         # If not persistent wipe out last times
         if not self.persistent: self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, {})
@@ -111,12 +117,20 @@ class Connection:
     # Safe functions
     # ===================================================================================
 
+    def safe_open(self):
+        try:
+            if not self.connected(): self.open()
+        except:
+            self.on_open_error(Error(Exceptions.OpenError(), client_id=self.client_id))
+
     def safe_read(self, key, **kwargs):
         """
         Executes the read function safely, checking for models and report by exception.
         If new data is available, the on_new_data method is executed.
         If there is an error, the on_read_error method is executed
         """
+        self.safe_open()
+
         try:
             # Open connection
             if not self.connected(): self.open()
@@ -130,8 +144,8 @@ class Connection:
             data = self.__clean_read_data__(key, data, **args)
             return data
 
-        except Exception as e:
-            self.on_read_error(key, Error(e, client_id=self.client_id))
+        except:
+            self.on_read_error(Error(Exceptions.ReadError(), client_id=self.client_id, key=key, kw_args=kwargs))
             return []
 
     def safe_write(self, key, data):
@@ -142,8 +156,8 @@ class Connection:
         # Clean data
         try:
             data = self.__clean_write_data__(key, data)
-        except Exception as e:
-            self.on_write_error(key, Error(e, client_id=self.client_id))
+        except:
+            self.on_write_error(Error(Exceptions.WriteError(), client_id=self.client_id, key=key, data=data))
             return False
 
         # Write data
@@ -152,9 +166,9 @@ class Connection:
             self.write(key, data)
             if self.store_and_forward: self.__store_and_forward_flush_buffer__()
             return True
-        except Exception as e:
+        except:
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
-            self.on_write_error(key, Error(e, client_id=self.client_id))
+            self.on_write_error(Error(Exceptions.WriteError(), client_id=self.client_id, key=key, data=data))
             return False
 
     # ===================================================================================
@@ -182,6 +196,13 @@ class Connection:
     def __read_async_aux__(self, key, **kwargs):
         data = self.safe_read(key, **kwargs)
         self.on_new_data(key, data)
+
+    def open_async(self, key, **kwargs):
+        """
+        Executes the open function without blocking the main thread
+        """
+        open_thread = threading.Thread(target=self.open, name="Open async")
+        open_thread.start()
 
     def read_async(self, key, **kwargs):
         """

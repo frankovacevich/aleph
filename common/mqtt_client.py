@@ -111,7 +111,8 @@ class MqttClient:
             self.mqtt_client.connect(self.broker_address, self.port, keepalive=self.keepalive)
             time.sleep(0.1)
             self.mqtt_client.loop()
-            if 0 < timeout < time.time() - t0: raise MqttConnectionTimeoutException()
+            if 0 < timeout < time.time() - t0:
+                raise Exceptions.OpenTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
 
     def disconnect(self):
         self.mqtt_client.disconnect()

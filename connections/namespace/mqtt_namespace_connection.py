@@ -2,7 +2,7 @@ import json
 import random
 import time
 from aleph.connections.connection import Connection
-from aleph.common.mqtt_connection import MqttConnection
+from aleph.common.mqtt_client import MqttClient
 from aleph.common.exceptions import *
 
 
@@ -39,7 +39,7 @@ class MqttNamespaceConnection(Connection):
     def open(self):
         if self.mqtt_conn is not None: return
 
-        self.mqtt_conn = MqttConnection(self.client_id)
+        self.mqtt_conn = MqttClient(self.client_id)
         self.mqtt_conn.username = self.username
         self.mqtt_conn.password = self.password
         self.mqtt_conn.broker_address = self.broker_address
