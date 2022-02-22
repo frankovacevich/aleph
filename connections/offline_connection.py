@@ -15,10 +15,12 @@ class OfflineConnection(Connection):
 
     def open(self):
         self.namespace_connection.open()
+        self.namespace_connection.on_new_data = self.on_new_data_from_namespace
         for key in self.local_connections: self.local_connections[key].open()
 
     def close(self):
-        pass
+        self.namespace_connection.close()
+        for key in self.local_connections: self.local_connections[key].close()
 
     def read(self, key, **kwargs):
         if key in self.local_connections:
@@ -32,6 +34,10 @@ class OfflineConnection(Connection):
         self.namespace_connection[key].write(key, data)
 
     def force_sync(self):
+        """
+        Retrieves last records from the namespace and inserts them in the local connections
+        """
+
         if not self.namespace_connection.connected(): self.namespace_connection.open()
 
         for key in self.local_connections:
@@ -46,7 +52,7 @@ class OfflineConnection(Connection):
 
     def on_new_data_from_namespace(self, key, data):
         """
-
+        When new data arrives from the namespace, update local connections
         """
         if key in self.local_connections:
             try:
