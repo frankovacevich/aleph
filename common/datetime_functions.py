@@ -4,6 +4,10 @@ from dateutil import parser
 import pytz
 
 
+# ======================================================================================================================
+# Datetime functions
+# ======================================================================================================================
+
 def now(string=False):
     """
     Returns current datetime in UTC as datetime.datetime (default) or string
@@ -78,4 +82,11 @@ def parse_date_to_string(date, timezone="UTC"):
 
     if timezone == "UTC": return date.strftime("%Y-%m-%dT%H:%M:%SZ")
     return date.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def parse_time_to_string(time):
+    """
+    Receives a time and returns a string HH:MM:SS.ffffff
+    """
+    return parser.parse(time).strftime("%H:%M:%S.%f")
 
