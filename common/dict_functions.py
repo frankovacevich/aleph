@@ -1,5 +1,3 @@
-import collections
-
 
 def flatten_dict(dictionary, parent_key='', separator='.'):
     """
@@ -11,15 +9,14 @@ def flatten_dict(dictionary, parent_key='', separator='.'):
     """
     items = []
     for k, v in dictionary.items():
-        new_key = parent_key + separator + k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
-            items.extend(flatten_dict(v, new_key, separator=separator).items())
-        else:
-            items.append((new_key, v))
+        try:
+            items.extend(flatten_dict(v, '%s%s.' % (parent_key, k)).items())
+        except AttributeError:
+            items.append(('%s%s' % (parent_key, k), v))
     return dict(items)
 
 
-def unflatten_dict(dictionary, separator="."):
+def unflatten_dict(dictionary):
     """
     Takes a dict and unflattens it.
 
@@ -29,11 +26,10 @@ def unflatten_dict(dictionary, separator="."):
     """
     result = dict()
     for key, value in dictionary.iteritems():
-        parts = key.split(separator)
+        parts = key.split(".")
         d = result
         for part in parts[:-1]:
-            if part not in d:
-                d[part] = dict()
+            if part not in d: d[part] = dict()
             d = d[part]
         d[parts[-1]] = value
     return result
