@@ -38,13 +38,13 @@ class Connection:
         """
         Opens the connection. If it fails, it must raise an Exception
         """
-        self.on_connect()
+        return
 
     def close(self):
         """
         Closes the connection.
         """
-        self.on_disconnect()
+        return
 
     def read(self, key, **kwargs):
         """
@@ -119,7 +119,9 @@ class Connection:
 
     def safe_open(self):
         try:
-            if not self.connected(): self.open()
+            if not self.connected():
+                self.open()
+                self.on_connect()
         except:
             self.on_open_error(Error(Exceptions.OpenError(), client_id=self.client_id))
 
@@ -201,7 +203,7 @@ class Connection:
         """
         Executes the open function without blocking the main thread
         """
-        open_thread = threading.Thread(target=self.open, name="Open async")
+        open_thread = threading.Thread(target=self.safe_open, name="Open async")
         open_thread.start()
 
     def read_async(self, key, **kwargs):
@@ -395,7 +397,7 @@ class Connection:
             # Flatten record
             record = flatten_dict(record)
             # Check model
-            if key in self.models: self.models[key].safe_validate(record)
+            if key in self.models: record = self.models[key].parse(record)
             # Check report by exception
             if self.report_by_exception: record = self.__check_report_by_exception__(key, record)
             # Check that record is not empty
