@@ -65,6 +65,7 @@ class MqttClient:
             self.on_disconnect()
 
     def __on_new_message__(self, client, userdata, msg):
+        # TODO: avoid messages from the same client
         topic = str(msg.topic)
         message = str(msg.payload.decode())
 
