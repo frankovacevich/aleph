@@ -1,5 +1,5 @@
 from .response import Response
-from ...common.dict_functions import flatten_dict
+from ...common.dict_functions import flatten_dict, unflatten_dict
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 from weasyprint import HTML, CSS
@@ -12,15 +12,19 @@ class PdfResponse(Response):
     def __init__(self, request, title=""):
         super().__init__(request, title)
         self.base_template = "base/report.html"
-        self.html_string = ""
         self.page_size = "A4 portrait"
+        self.page_margin = "1in"
         self.context = {}
+        self.true_false_values = ("True", "False")
+
+        # Private
+        self.html_string = ""
 
     def add_content(self, data, label="data"):
         self.content[label] = data
         if len(data) == 1:
             self.add_title(label)
-            self.add_dict(data)
+            self.add_dict(data[0])
         else:
             self.add_title(label)
             self.add_table(data)
@@ -97,21 +101,46 @@ class PdfResponse(Response):
             if headers is not None: record = flatten_dict(record)
             table_html += "<tr>"
             for f in fields_:
-                table_html += f'<td>{record.pop(f, "")}</td>'
+                value = record.pop(f, "")
+                if isinstance(value, bool): value = self.true_false_values[0 if value else 1]
+                table_html += f'<td>{value}</td>'
             table_html += "</tr>"
 
         self.html_string += "<table>" + table_html + "</table>"
 
-    def add_dict(self, data, headers=None):
-        pass
+    def __recursive_html_dict_generation__(self, dict_, level_=0):
+        html_ = ""
 
-    def add_matplotlib(self, plt):
+        for d in dict_:
+            if isinstance(dict_[d], list):
+                dict_[d] = {i: dict_[d][i] for i in range(0, len(dict_[d]))}
+
+            if isinstance(dict_[d], dict):
+                html_ += f"<p style='margin-left: {level_ * 20}px'><b>{d}</b></p>"
+                html_ += self.__recursive_html_dict_generation__(dict_[d], level_ + 1)
+            else:
+                html_ += f"<p style='margin-left: {level_ * 20}px'><b>{d}: </b>{dict_[d]}</p>"
+
+        return html_
+
+    def add_dict(self, dictionary, headers=None):
+        print(dictionary)
+        self.html_string += self.__recursive_html_dict_generation__(unflatten_dict(dictionary))
+
+    def add_matplotlib(self, figure, caption="", size=(5, 2)):
         string_io_bytes = io.BytesIO()
-        plt.savefig(string_io_bytes, format='png')
+        figure.set_size_inches(size)
+        figure.savefig(string_io_bytes, format='png')
         string_io_bytes.seek(0)
         img_data = base64.b64encode(string_io_bytes.read())
-        print(img_data)
-        self.html_string += '<img src="data:image/png;base64,%s">' % img_data
+        self.add_base64_img(img_data, caption)
+
+    def add_base64_img(self, img_data, caption=""):
+        figure_html = '<figure>'
+        figure_html += f'<img src="data:image/png;base64, {img_data.decode()}">'
+        figure_html += f'<figcaption>{caption}</figcaption>'
+        figure_html += '</figure>'
+        self.html_string += figure_html
 
     # ============================================================================
     # Other content
@@ -120,10 +149,10 @@ class PdfResponse(Response):
         self.html_string += "<hr>"
 
     def add_page_break(self):
-        self.html_string += "<div class'pagebreak'></div>"
+        self.html_string += "<div class='pagebreak'></div>"
 
     def add_title(self, title, level="h1"):
-        self.html_string += "<h1>" + str(title) + "</h1>"
+        self.html_string += f"<{level}>{str(title).title()}</{level}>"
 
     def add_html(self, html):
         self.html_string += html
@@ -132,7 +161,9 @@ class PdfResponse(Response):
         # Get html string content
         html_string = render_to_string(self.base_template, self.context)
         html_string = html_string.replace('<div class="report-body">', '<div class="report-body">' + self.html_string)
-        html_string = html_string.replace('@page{ size: A4 portrait', '@page{ size: ' + self.page_size)
+        html_string = html_string.replace('@page{ size: A4 portrait; margin: 1in }',
+                                          '@page{ size: ' + self.page_size + "; margin: " + self.page_margin + " }")
+        # return HttpResponse(html_string)  # For debugging
 
         # Create pdf file
         html = HTML(string=html_string, base_url=self.request.build_absolute_uri())

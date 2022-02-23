@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 from ..common.datetime_functions import *
 
 """
@@ -41,10 +42,17 @@ hidden                boolean, int, float, string
 """
 
 
+def cap_value(x, max_x, min_x=None):
+    if min_x is None: min_x = -max_x
+    if min_x <= x <= max_x: return x
+    elif x > max_x: return max_x
+    elif x < min_x: return min_x
+
+
 class DataModel:
 
-    def __init__(self, fields):
-        self.name = ""
+    def __init__(self, key, fields):
+        self.key = key
         self.fields = {field.name: field for field in fields}
 
         # Database storing
@@ -71,16 +79,19 @@ class DataModel:
         # Parse each field
         for field in record:
             if field in self.fields:
-                parser = self.fields[field].parser
-                if parser is not None:
+                parser_ = self.fields[field].parser
+                if parser_ is None:
+                    new_record[field] = record[field]
+                else:
                     try:
-                        new_record[field] = parser(record[field])
+                        new_record[field] = parser_(record[field])
                     except:
                         pass
 
         # Check that all required fields are present
         for field in self.fields:
-            if self.fields[field].required and field not in new_record: return {}
+            if self.fields[field].required and field not in new_record:
+                return {}
 
         return new_record
 
@@ -94,7 +105,7 @@ class DataField:
         # Validation
         self.validator = None   # function(x) that returns True if the value is valid
         self.parser = None      # function(x) that takes a value and returns another value compatible with the type
-        self.required = True
+        self.required = False
 
         # Database storing
         self.unique = False
@@ -122,7 +133,7 @@ class DataField:
                          type="int",
                          validator=lambda x: isinstance(x, int),
                          parser=int,
-                         html_input="number",
+                         html_input="select" if "choices" in kwargs else "number",
                          **kwargs)
 
     @staticmethod
@@ -143,7 +154,7 @@ class DataField:
                          max_length=max_length,
                          validator=lambda x, l=max_length: isinstance(x, str) and len(x) <= l,
                          parser=str,
-                         html_input="text",
+                         html_input="select" if "choices" in kwargs else "text",
                          **kwargs)
 
     @staticmethod
@@ -157,35 +168,40 @@ class DataField:
 
     @staticmethod
     def id(name, **kwargs):
-        return DataField.text(name=name,
-                              type="id",
-                              default=str(uuid.uuid4()),
-                              html_input="text",
-                              **kwargs)
+        return DataField(name=name,
+                         type="id",
+                         validator=lambda x: isinstance(x, str),
+                         parser=str,
+                         default=str(uuid.uuid4()),
+                         html_input="text",
+                         **kwargs)
 
     @staticmethod
     def autoid(name, **kwargs):
-        return DataField.integer(name=name,
-                                 type="autoid",
-                                 autoincrement=True,
-                                 html_input="hidden",
-                                 **kwargs)
+        return DataField(name=name,
+                         type="autoid",
+                         autoincrement=True,
+                         html_input="hidden",
+                         **kwargs)
 
     @staticmethod
     def foreign_key(name, namespace_key, foreign_field, foreign_display, **kwargs):
-        return DataField.text(name=name,
-                              foreign_key=namespace_key,        # Namespace key (table) to which the foreign key points
-                              foreign_field=foreign_field,      # Related field in the foreign key (usually 'id_')
-                              foreign_display=foreign_display,  # A string (field) or a function (of record) (see docs)
-                              html_input="select",
-                              **kwargs)
+        return DataField(name=name,
+                         foreign_key=namespace_key,        # Namespace key (table) to which the foreign key points
+                         foreign_field=foreign_field,      # Related field in the foreign key (usually 'id_')
+                         foreign_display=foreign_display,  # A string (field) or a function (of record) (see docs)
+                         html_input="select",
+                         **kwargs)
 
     @staticmethod
     def biginteger(name, **kwargs):
-        return DataField.integer(name=name,
-                                 type="biginteger",
-                                 html_input="number",
-                                 **kwargs)
+        bigint_max = 9223372036854775807
+        return DataField(name=name,
+                         type="biginteger",
+                         validator=lambda x, m=bigint_max: isinstance(x, int) and -m < x < m,
+                         parser=lambda x, m=bigint_max: int(cap_value(x, m)),
+                         html_input="number",
+                         **kwargs)
 
     @staticmethod
     def decimal(name, max_digits=10, decimal_places=2, **kwargs):
@@ -196,8 +212,8 @@ class DataField:
                          type="decimal",
                          max_digits=max_digits,
                          decimal_places=decimal_places,
-                         validator=lambda x, m=max_digits: m > x > -m,
-                         parser=lambda x, d=decimal_places, m=max_digits: DataField.cap_value(round(x, d), m),
+                         validator=lambda x, m=max_digits: isinstance(x, Decimal) and m > x > -m,
+                         parser=lambda x: Decimal(str(x)),
                          html_input="number",
                          **kwargs)
 
@@ -205,6 +221,7 @@ class DataField:
     def time(name, **kwargs):
         return DataField(name=name,
                          type="time",
+                         validator=lambda x: isinstance(x, str),
                          parser=parse_time_to_string,
                          html_input="time",
                          **kwargs)
@@ -213,6 +230,7 @@ class DataField:
     def date(name, **kwargs):
         return DataField(name=name,
                          type="date",
+                         validator=lambda x: isinstance(x, str),
                          parser=lambda x: parse_date_to_string(x).split("T")[0],
                          html_input="date",
                          **kwargs)
@@ -221,18 +239,9 @@ class DataField:
     def datetime(name, **kwargs):
         return DataField(name=name,
                          type="datetime",
-                         validator=lambda x: isinstance(x, datetime.datetime),
+                         validator=lambda x: isinstance(x, str),
                          parser=lambda x: parse_date(x).strftime("%Y-%m-%d %H:%M:%S"),
                          html_input="datetime",
                          **kwargs)
 
-    # ==================================================================================================================
-    # Other methods
-    # ==================================================================================================================
 
-    @staticmethod
-    def cap_value(x, max_x, min_x=None):
-        if min_x is None: min_x = -max_x
-        if min_x <= x <= max_x: return x
-        elif x > max_x: return max_x
-        elif x < min_x: return min_x

@@ -24,8 +24,11 @@ def unflatten_dict(dictionary):
     > unflatten_dict({"a.b.c": 1, "a.b.d": 2, "x.y": 3})
     > {"a": {"b": {"c": 1, "d": 2}}, "x": {"y": 3}}
     """
+    if isinstance(dictionary, list):
+        dictionary = {i: dictionary[i] for i in range(0, len(dictionary))}
+
     result = dict()
-    for key, value in dictionary.iteritems():
+    for key, value in dictionary.items():
         parts = key.split(".")
         d = result
         for part in parts[:-1]:
