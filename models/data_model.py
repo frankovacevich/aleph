@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from ..common.datetime_functions import *
+from aleph.common.datetime_functions import *
 
 """
 

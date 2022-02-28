@@ -2,7 +2,7 @@ from ..interfaces import PostgresInterfaceConnection
 from .sql_generic import SQLGenericDB
 
 
-class Postgres(PostgresInterfaceConnection):
+class PostgresConnection(PostgresInterfaceConnection):
 
     def __init__(self):
         super().__init__()

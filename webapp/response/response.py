@@ -13,3 +13,4 @@ class Response:
 
     def make(self):
         return HttpResponse("")
+

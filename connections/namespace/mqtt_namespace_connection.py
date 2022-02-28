@@ -1,9 +1,9 @@
 import json
 import random
 import time
-from aleph.connections.connection import Connection
-from aleph.common.mqtt_client import MqttClient
-from aleph.common.exceptions import *
+from ...connections.connection import Connection
+from ...common.mqtt_client import MqttClient
+from ...common.exceptions import *
 
 
 class MqttNamespaceConnection(Connection):
@@ -18,9 +18,9 @@ class MqttNamespaceConnection(Connection):
         self.tls_enabled = False
         self.certificates_folder = ""
 
-        self.birth_topic = None
+        self.birth_key = None
         self.birth_message = None
-        self.last_will_topic = None
+        self.last_will_key = None
         self.last_will_message = None
 
         self.read_timeout = 10
@@ -47,11 +47,12 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.tls_enabled = self.tls_enabled
         self.mqtt_conn.certificates_folder = self.certificates_folder
 
+        self.mqtt_conn.birth_message = self.data_to_mqtt_message(self.birth_message)
+        self.mqtt_conn.birth_topic = self.key_to_topic(self.birth_key)
+        self.mqtt_conn.last_will_message = self.data_to_mqtt_message(self.last_will_message)
+        self.mqtt_conn.last_will_topic = self.key_to_topic(self.last_will_key)
+
         self.mqtt_conn.persistent = self.persistent
-        self.mqtt_conn.birth_message = self.birth_message
-        self.mqtt_conn.birth_topic = self.birth_topic
-        self.mqtt_conn.last_will_topic = self.last_will_topic
-        self.mqtt_conn.last_will_message = self.last_will_message
         self.mqtt_conn.on_disconnect = self.on_disconnect
         self.mqtt_conn.on_connect = self.on_connect
         self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__

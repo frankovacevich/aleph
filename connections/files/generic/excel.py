@@ -12,7 +12,7 @@ COLUMN_LETTERS += ["A" + x for x in COLUMN_LETTERS]
 COLUMN_LETTERS += ["B" + x for x in COLUMN_LETTERS]
 
 
-class Excel(Connection):
+class ExcelConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)

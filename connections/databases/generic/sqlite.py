@@ -3,7 +3,7 @@ from .sql_generic import SQLGenericDB
 import sqlite3
 
 
-class Sqlite(SqliteInterfaceConnection):
+class SqliteConnection(SqliteInterfaceConnection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)

@@ -2,7 +2,7 @@ from ..interfaces import MySQLInterfaceConnection
 from .sql_generic import SQLGenericDB
 
 
-class MySQLGenericConnection(MySQLInterfaceConnection):
+class MySQLConnection(MySQLInterfaceConnection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)

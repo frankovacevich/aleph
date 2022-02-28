@@ -3,7 +3,8 @@ from ..common.exceptions import *
 
 class Service:
 
-    def __init__(self):
+    def __init__(self, service_id):
+        self.service_id = service_id
         self.namespace_connection = None
         self.connection = None
 
@@ -45,10 +46,10 @@ class Service:
         return self.connection.safe_read(key, **kwargs)
 
     def on_new_data_from_namespace(self, key, data):
-        pass
+        self.connection.safe_write(key, data)
 
     def on_new_data_from_connection(self, key, data):
-        pass
+        self.namespace_connection.safe_write(key, data)
 
     # ===================================================================================
     # Error handling (override me)

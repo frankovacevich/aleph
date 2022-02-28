@@ -10,7 +10,7 @@ from ....common.database_field_parse import *
 from ....common.data_filter import DataFilter
 
 
-class MongoDB(MongoDBInterfaceConnection):
+class MongoDBConnection(MongoDBInterfaceConnection):
 
     def read(self, key, **kwargs):
         # Parse args and key
