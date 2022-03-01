@@ -2,18 +2,20 @@ import datetime
 from dateutil.tz import tzutc, tzlocal
 from dateutil import parser
 import pytz
+import time
 
 
 # ======================================================================================================================
 # Datetime functions
 # ======================================================================================================================
 
-def now(string=False):
+def now(string=False, unixts=False):
     """
     Returns current datetime in UTC as datetime.datetime (default) or string
     """
     t = datetime.datetime.today().replace(tzinfo=tzlocal()).astimezone(tzutc())
     if string: return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif unixts: return round(time.time())
     else: return t
 
 
