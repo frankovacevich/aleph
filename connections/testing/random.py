@@ -22,9 +22,4 @@ class RandomConnection(Connection):
         return data
 
     def write(self, key, data):
-        self.i += 1
-        if self.i > 5:
-            print("WRITING:", key, len(data))
-            return True
-        raise ConnectionWriteException()
-
+        pass
