@@ -20,7 +20,8 @@ def now(string=False):
 def parse_date(date, round_if_string=False):
     """
     Parses a date to a datetime object; date can be:
-    - int (days from today) or int (unix timestamp)
+    - int (seconds from today)
+    - float (unix timestamp, seconds since Jan 01 1970 UTC)
     - string (ISO datetime string)
     - empty string ("", current datetime)
     - datetime.datetime object
@@ -32,12 +33,12 @@ def parse_date(date, round_if_string=False):
     """
 
     # int (days from today)
-    if isinstance(date, int) and date < 1000:
-        date = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(days=date)
+    if isinstance(date, int):
+        date = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(seconds=date)
 
     # unix timestamp
-    elif isinstance(date, int):
-        date = datetime.datetime.utcfromtimestamp(date)
+    elif isinstance(date, float):
+        date = datetime.datetime.utcfromtimestamp(date).replace(tzinfo=tzutc())
 
     # empty string
     elif date == "":
