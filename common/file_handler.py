@@ -9,11 +9,6 @@ import time
 
 class FileHandler:
 
-    COLUMN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    COLUMN_LETTERS = [x for x in COLUMN_LETTERS]
-    COLUMN_LETTERS += ["A" + x for x in COLUMN_LETTERS]
-    COLUMN_LETTERS += ["B" + x for x in COLUMN_LETTERS]
-
     def __init__(self, file, read_from_copy=False):
         self.file = file
 
@@ -26,6 +21,9 @@ class FileHandler:
         # We keep a timestamp of when the file has last been accessed
         self.last_time_read_key = {}
 
+        # Get file creation timestamp
+        self.file_creation_timestamp = 0
+
     def file_has_been_modified(self, key):
         """
         Returns True if the file has changed since the last time the function
@@ -34,6 +32,7 @@ class FileHandler:
         if key not in self.last_time_read_key:
             self.last_time_read_key[key] = 0
 
+        self.file_creation_timestamp = os.path.getctime(self.file)
         last_modified = os.path.getmtime(self.file)
         if last_modified > self.last_time_read_key[key]:
             return True
@@ -48,7 +47,7 @@ class FileHandler:
         file_ = self.file
 
         if self.read_from_copy:
-            temp_file = os.path.join(self.temp_folder, os.path.basename(self.file))
+            temp_file = os.path.join(self.temp_folder, "_" + os.path.basename(self.file))
 
             if self.file_has_been_modified(key):
                 copyfile(self.file, temp_file)
