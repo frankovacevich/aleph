@@ -2,7 +2,7 @@
 Different ways to store key:value pairs on the local storage
 Safe methods must fail silently
 """
-import json
+import pickle
 
 
 # ===================================================================================
@@ -10,52 +10,26 @@ import json
 # ===================================================================================
 class LocalStorage:
 
-    class Pre:
-        SNF_BUFFER = "_snf_buffer"
-        LAST_RECORD_SENT = "_last_record"
-        LAST_TIME_READ = "_last_time"
-        PAST_VALUES = "_past_values"
+    # Predefined keys
+    SNF_BUFFER = "_snf_buffer"
+    LAST_RECORD_SENT = "_last_record"
+    LAST_TIME_READ = "_last_time"
+    PAST_VALUES = "_past_values"
 
     def __init__(self):
         self.data = {}
-        self.prefix = ""
-        self.safe_load()
-
-    def pkey(self, key):
-        return self.prefix + key
+        self.load()
 
     def load(self):
         pass
 
     def get(self, key, null_value=None):
-        key = self.pkey(key)
         if key not in self.data: return null_value
         return self.data[key]
 
     def set(self, key, value):
-        key = self.pkey(key)
         self.data[key] = value
-
-    def safe_load(self):
-        try:
-            self.load()
-        except:
-            pass
-
-    def safe_get(self, key, null_value=None):
-        try:
-            return self.get(key, null_value)
-        except:
-            key = self.pkey(key)
-            if key not in self.data: return null_value
-            return self.data[key]
-
-    def safe_set(self, key, value):
-        try:
-            self.set(key, value)
-        finally:
-            key = self.pkey(key)
-            self.data[key] = value
+        return value
 
 
 # ===================================================================================
@@ -68,18 +42,19 @@ class FileLocalStorage(LocalStorage):
         super().__init__()
 
     def load(self):
-        f = open(self.file)
-        self.data = json.loads(f.read())
-        f.close()
+        import os
+        if os.path.isfile(self.file):
+            with open(self.file, 'rb') as f:
+                self.data = pickle.load(f)
 
     def get(self, key, null_value=None):
         return super().get(key, null_value)
 
     def set(self, key, value):
-        f = open(self.file, "w+")
-        f.write(json.dumps(self.data))
-        f.close()
-        return super().set(key, value)
+        super().set(key, value)
+        with open(self.file, "wb+") as f:
+            pickle.dump(self.data, f)
+        return value
 
 
 # ===================================================================================
@@ -96,10 +71,12 @@ class SqliteDictLocalStorage(LocalStorage):
         self.sqlitedict = SqliteDict(self.file, autocommit=True)
 
     def get(self, key, null_value=None):
-        return self.sqlitedict[self.pkey(key)]
+        if key not in self.sqlitedict: return null_value
+        return self.sqlitedict[key]
         
     def set(self, key, value):
-        self.sqlitedict[self.pkey(key)] = value
+        self.sqlitedict[key] = value
+        return value
         
 
 # ===================================================================================
@@ -107,16 +84,19 @@ class SqliteDictLocalStorage(LocalStorage):
 # ===================================================================================
 class RedisLocalStorage(LocalStorage):
 
-    def __init__(self):
+    def __init__(self, prefix=""):
         self.red = None
+        self.prefix = prefix
         super().__init__()
 
     def load(self):
         import redis
-        self.red = redis.Redis(host='localhost', port=6379, db=0)
+        self.red = redis.Redis()  # host='localhost', port=6379, db=0
 
     def get(self, key, null_value=None):
-        return self.red.get(self.pkey(key))
+        if not self.red.exists(self.prefix + key): return null_value
+        else: return pickle.loads(self.red.get(self.prefix + key))
 
     def set(self, key, value):
-        self.red.set(self.pkey(key), value)
+        self.red.set(self.prefix + key, pickle.dumps(value))
+        return value
