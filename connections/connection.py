@@ -472,7 +472,8 @@ class Connection:
         are different from the previous call. This works by storing the data in the
         local storage and using it in the next call to check for new or modified records. 
         
-        It only works if every record has an 'id_' field, which is the id of each record. 
+        It only works if every record has an 'id_' field, which is the id of each record.
+        Also, records must be flat.
         """
         
         # Organize records by id
@@ -482,7 +483,6 @@ class Connection:
         # Get past values
         past_values = self.local_storage.get(self.client_id + LocalStorage.Pre.PAST_VALUES)
         if past_values is None:
-            # REVISE
             self.local_storage.set(self.client_id + LocalStorage.Pre.PAST_VALUES, data_as_dict)
             return []
 
@@ -501,7 +501,7 @@ class Connection:
             elif False in [data_as_dict[record_id][v] == past_values[record_id][v] for v in data_as_dict[record_id] if v != "t"]: changed = True
             
             # If changed, add to data_that_changed:
-            if changed: data_that_changed.append(data_as_dict[record_id])
+            if changed: data_that_changed.append(data_as_dict[record_id].copy())
 
         # For records that are not in the new data, mark as deleted
         if len(past_values) != len(data_as_dict):
