@@ -5,6 +5,7 @@ from ..common.dict_functions import *
 from ..common.local_storage import LocalStorage
 from ..common.data_filter import DataFilter
 import threading
+import time
 
 
 class Connection:
@@ -103,7 +104,7 @@ class Connection:
         if self.store_and_forward: self.__store_and_forward_flush_buffer__()
 
         # If not persistent wipe out last times
-        if not self.persistent: self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, {})
+        if not self.persistent: self.local_storage.set(self.client_id + LocalStorage.LAST_TIME_READ, {})
         return
 
     def on_disconnect(self):
@@ -142,6 +143,7 @@ class Connection:
             data = self.read(key, **args)
             # Compare to past values
             if self.compare_to_previous_on_read: data = self.__compare_to_previous__(data)
+            print("OOOOOOO", data)
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
             return data
@@ -239,13 +241,13 @@ class Connection:
 
         since: timestamp.
                Default: timestamp of the last record read or now()
-               Accepts: int (seconds from today or unix), string (parseable format), empty string (today at 00:00),
+               Accepts: int (seconds from today), float (unix), string (parseable format), empty string (today at 00:00),
                         datetime.datetime, None (since the beginning of time)
                Cleaned: datetime.datetime (with tzinfo=UTC) or None
 
         until: timestamp.
                Default: None
-               Accepts: int (days from today or unix), string (parseable format), empty string (tomorrow at 00:00),
+               Accepts: int (seconds from today), float (unix), string (parseable format), empty string (tomorrow at 00:00),
                         datetime.datetime, None (this moment)
                Cleaned: datetime.datetime (with tzinfo=UTC) or None
 
@@ -283,9 +285,10 @@ class Connection:
         if "cleaned" in kwargs and kwargs["cleaned"]: return kwargs
 
         # Get and set last read time
-        last_times = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_TIME_READ, {})
-        last_t = last_times.pop(key, now())
-        last_times[key] = now()
+        last_times = self.local_storage.get(self.client_id + LocalStorage.LAST_TIME_READ, {})
+        last_t = parse_date(last_times.pop(key, time.time()))
+        last_times[key] = time.time()
+        # TODO: check time.time() precision
 
         # Preset args
         args = {
@@ -318,7 +321,7 @@ class Connection:
         if "response_code" in kwargs: args["response_code"] = kwargs["response_code"]
 
         args["cleaned"] = True
-        self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_TIME_READ, last_times)
+        self.local_storage.set(self.client_id + LocalStorage.LAST_TIME_READ, last_times)
         return args
 
     def __clean_read_data__(self, key, data, **kwargs):
@@ -352,8 +355,12 @@ class Connection:
                 if "t" not in record: record["t"] = now()
                 else: record["t"] = parse_date(record["t"])
                 # Timestamp in valid range
-                if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
-                if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                if kwargs["since"] is not None and kwargs["since"] > record["t"]:
+                    print("ACA", kwargs["since"], record["t"])
+                    continue
+                if kwargs["until"] is not None and kwargs["until"] < record["t"]:
+                    print("ALLA")
+                    continue
                 # Timestamp in timezone
                 record["t"] = date_to_string(record["t"], kwargs["timezone"])
 
@@ -419,7 +426,7 @@ class Connection:
         """
 
         # Get last record sent from local storage
-        last_records = self.local_storage.get(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT, {})
+        last_records = self.local_storage.get(self.client_id + LocalStorage.LAST_RECORD_SENT, {})
         if key not in last_records: last_records[key] = {}
             
         # For each field in record, check if changed
@@ -430,7 +437,7 @@ class Connection:
 
         # Store new record to local storage and return
         last_records[key] = record
-        self.local_storage.set(self.client_id + LocalStorage.Pre.LAST_RECORD_SENT, last_records)
+        self.local_storage.set(self.client_id + LocalStorage.LAST_RECORD_SENT, last_records)
         return new_record
 
     # ===================================================================================
@@ -438,7 +445,7 @@ class Connection:
     # ===================================================================================
     def __store_and_forward_add_to_buffer__(self, key, data):
         # Get buffer from local storage
-        buffer = self.local_storage.get(self.client_id + LocalStorage.Pre.SNF_BUFFER)
+        buffer = self.local_storage.get(self.client_id + LocalStorage.SNF_BUFFER)
         if buffer is None: buffer = {}
         
         # Add data to buffer
@@ -446,11 +453,11 @@ class Connection:
         buffer.append(data)
         
         # Save buffer to local storage
-        self.local_storage.set(self.client_id + LocalStorage.Pre.SNF_BUFFER, buffer)
+        self.local_storage.set(self.client_id + LocalStorage.SNF_BUFFER, buffer)
 
     def __store_and_forward_flush_buffer__(self):
         # Get buffer from local storage
-        buffer = self.local_storage.get(self.client_id + LocalStorage.Pre.SNF_BUFFER)
+        buffer = self.local_storage.get(self.client_id + LocalStorage.SNF_BUFFER)
         if buffer is None or len(buffer) == 0: return
 
         # For each record in the buffer, try to write
@@ -461,7 +468,7 @@ class Connection:
             except: new_buffer[key] = data
 
         # Save buffer to local storage
-        self.local_storage.set(self.client_id + LocalStorage.Pre.SNF_BUFFER, buffer)
+        self.local_storage.set(self.client_id + LocalStorage.SNF_BUFFER, buffer)
 
     # ===================================================================================
     # Compare to past values
@@ -481,9 +488,9 @@ class Connection:
         if len(data_as_dict) == 0: return data
 
         # Get past values
-        past_values = self.local_storage.get(self.client_id + LocalStorage.Pre.PAST_VALUES)
+        past_values = self.local_storage.get(self.client_id + LocalStorage.PAST_VALUES)
         if past_values is None:
-            self.local_storage.set(self.client_id + LocalStorage.Pre.PAST_VALUES, data_as_dict)
+            self.local_storage.set(self.client_id + LocalStorage.PAST_VALUES, data_as_dict)
             return []
 
         # Create a list to keep the records that are different from past values
@@ -507,7 +514,7 @@ class Connection:
         if len(past_values) != len(data_as_dict):
             for record_id in past_values:
                 if record_id not in data_as_dict:
-                    data_that_changed.append({"id_": record_id, "t": now(string=True), "deleted_": True})
+                    data_that_changed.append({"id_": record_id, "deleted_": True})
 
-        self.local_storage.set(self.client_id + LocalStorage.Pre.PAST_VALUES, data_as_dict)
+        self.local_storage.set(self.client_id + LocalStorage.PAST_VALUES, data_as_dict)
         return data_that_changed
