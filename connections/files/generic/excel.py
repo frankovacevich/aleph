@@ -9,7 +9,6 @@ from openpyxl import load_workbook
 COLUMN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 COLUMN_LETTERS = [x for x in COLUMN_LETTERS]
 COLUMN_LETTERS += ["A" + x for x in COLUMN_LETTERS]
-COLUMN_LETTERS += ["B" + x for x in COLUMN_LETTERS]
 
 
 class ExcelConnection(Connection):
@@ -23,9 +22,11 @@ class ExcelConnection(Connection):
         # Optional
         self.read_from_copy = True                  # Copy file before reading
         self.number_of_watching_rows = 100          # Watch changes on the last number_of_watching_rows rows
-        self.columns = FileHandler.COLUMN_LETTERS   # List of the names of the columns
+        self.columns = COLUMN_LETTERS               # List of the names of the columns
         self.include_row_number = True              # Include row number in returned records
+        self.temp_folder = ""
 
+        # Set compare to previous to True
         self.compare_to_previous_on_read = True
 
         # Private
@@ -36,6 +37,7 @@ class ExcelConnection(Connection):
     # ===================================================================================
     def open(self):
         self.file_handler = FileHandler(self.file, self.read_from_copy)
+        self.file_handler.temp_folder = self.temp_folder
         super().open()
 
     def close(self):
@@ -72,14 +74,14 @@ class ExcelConnection(Connection):
         for r in range(begin_row, last_row):
 
             # Add row number
-            row_data = {}
+            row_data = {"id_": str(int(self.file_handler.file_creation_timestamp)) + str(r)}
             if self.include_row_number: row_data["n"] = r
 
             # For each column, get cell value
             for c in range(1, last_col):
                 cell_value = sheet.cell(r, c).value
                 if self.__cell_value_is_error__(cell_value): continue
-                row_data[COLUMN_LETTERS[c]] = cell_value
+                row_data[COLUMN_LETTERS[c-1]] = cell_value
 
             # Add data
             data.append(row_data)
