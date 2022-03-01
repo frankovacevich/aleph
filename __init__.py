@@ -1,2 +1,2 @@
-from .connections import connection
-from .services import service
+from .connections.connection import Connection
+from .services.service import Service
