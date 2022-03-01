@@ -26,6 +26,8 @@ class ExcelConnection(Connection):
         self.columns = FileHandler.COLUMN_LETTERS   # List of the names of the columns
         self.include_row_number = True              # Include row number in returned records
 
+        self.compare_to_previous_on_read = True
+
         # Private
         self.file_handler = None
 
@@ -46,9 +48,6 @@ class ExcelConnection(Connection):
     def read(self, key, **kwargs):
         # If data hasn't changed, don't do anything
         if not self.file_handler.file_has_been_modified(key): return []
-
-        # Set flag to compare to previous upon returning
-        kwargs["compare_to_previous"] = True
 
         # Open workbook
         file = self.file_handler.get_file_for_reading(key)
