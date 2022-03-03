@@ -1,6 +1,6 @@
 import uuid
 from decimal import Decimal
-from aleph.common.datetime_functions import *
+from ..common.datetime_functions import *
 
 """
 
@@ -100,7 +100,7 @@ class DataField:
 
     def __init__(self, name, **kwargs):
         self.name = name
-        self.type = ""
+        self.type = "text"
 
         # Validation
         self.validator = None   # function(x) that returns True if the value is valid
@@ -111,12 +111,11 @@ class DataField:
         self.unique = False
         self.default = None
         self.indexed = False
-        self.db_column = ""
-        self.autoincrement = False
+        self.db_column = name
 
         # Html form
         self.html_input = None
-        self.html_label = ""
+        self.html_label = name.replace("_", " ").replace(".", " / ").title()
         self.html_help = ""
         self.html_read_only = False
 
@@ -166,23 +165,23 @@ class DataField:
                          html_input="checkbox",
                          **kwargs)
 
-    @staticmethod
-    def id(name, **kwargs):
-        return DataField(name=name,
-                         type="id",
-                         validator=lambda x: isinstance(x, str),
-                         parser=str,
-                         default=str(uuid.uuid4()),
-                         html_input="text",
-                         **kwargs)
-
-    @staticmethod
-    def autoid(name, **kwargs):
-        return DataField(name=name,
-                         type="autoid",
-                         autoincrement=True,
-                         html_input="hidden",
-                         **kwargs)
+    # @staticmethod
+    # def id(name, **kwargs):
+    #     return DataField(name=name,
+    #                      type="id",
+    #                      validator=lambda x: isinstance(x, str),
+    #                      parser=str,
+    #                      default=str(uuid.uuid4()),
+    #                      html_input="text",
+    #                      **kwargs)
+    #
+    # @staticmethod
+    # def autoid(name, **kwargs):
+    #     return DataField(name=name,
+    #                      type="autoid",
+    #                      autoincrement=True,
+    #                      html_input="hidden",
+    #                      **kwargs)
 
     @staticmethod
     def foreign_key(name, namespace_key, foreign_field, foreign_display, **kwargs):
