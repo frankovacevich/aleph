@@ -1,5 +1,5 @@
 from ..interfaces import MySQLInterfaceConnection
-from .sql_generic import SQLGenericDB
+from ._sql_generic import SQLGenericDB
 
 
 class MySQLConnection(MySQLInterfaceConnection):

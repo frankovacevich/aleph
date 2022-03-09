@@ -183,11 +183,11 @@ class MqttNamespaceConnection(Connection):
         if topic.startswith("alv1") and len(topic) > 7:
             sindex = topic.index("/", 5) + 1
             topic = topic[sindex:]
-        return topic
+        return topic.replace("/", ".")
 
     @staticmethod
     def key_to_topic(key, mode="w"):
-        topic = "alv1/" + str(mode) + "/" + str(key)
+        topic = "alv1/" + str(mode) + "/" + str(key).replace("/", ".")
         return topic
 
     @staticmethod

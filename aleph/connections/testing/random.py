@@ -2,7 +2,6 @@ import random
 import string
 from ..connection import Connection
 import time
-from ...common.exceptions import *
 
 
 class RandomConnection(Connection):
@@ -10,6 +9,7 @@ class RandomConnection(Connection):
     def __init__(self):
         super().__init__()
         self.i = 0
+        self.delay = 1
 
     def read(self, key, **kwargs):
         data = {
@@ -18,8 +18,9 @@ class RandomConnection(Connection):
             "float": random.random(),
             "bool": random.random() > 0.5,
         }
-        time.sleep(1)
+        time.sleep(self.delay)
         return data
 
     def write(self, key, data):
-        pass
+        print("Writing data on", key, ":")
+        print(data)

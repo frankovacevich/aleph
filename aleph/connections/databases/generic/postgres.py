@@ -1,5 +1,5 @@
 from ..interfaces import PostgresInterfaceConnection
-from .sql_generic import SQLGenericDB
+from ._sql_generic import SQLGenericDB
 
 
 class PostgresConnection(PostgresInterfaceConnection):

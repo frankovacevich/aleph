@@ -1,45 +1,24 @@
+"""
+
+Records with models must be flat
+
+HTML INPUTS:
+checkbox (bool)
+number (int, float)
+text (string)
+email (string)
+url (string)
+textarea (string)
+date (string)
+datetime (string)
+time (string)
+select (string, int)
+hidden (boolean, int, float, string)
+"""
+
 import uuid
 from decimal import Decimal
 from ..common.datetime_functions import *
-
-"""
-
-Base types     SQL default type
--------------------------------------------
-bool           BOOL
-int            INTEGER
-float          FLOAT
-string         VARCHAR(255)
-
-
-Derived types     Base type       Details                                  SQL type
-----------------------------------------------------------------------------------------------------------------
-id                string          PRIMARY KEY, INDEXED                     VARCHAR(255)
-auto              int             PRIMARY KEY, AUTOINCREMENT, INDEXED      INTEGER
-datetime          string          YY-mm-dd HH:MM:SS.SSSSSS                 DATETIME(6)
-time              string          HH:MM:SS.SSSSSS                          TIME(6)
-date              string          YY-mm-dd                                 DATE
-decimal           float           max_digits=10, decimal_places=2          DECIMAL(max_digits, decimal_places)
-bigint            int                                                      BIGINT
-text              string          max_length=255                           VARCHAR(max_length)
-foreign_key       string          
-
-
-Html Input types      Base type
-------------------------------------------------------
-checkbox              bool
-number                int, float
-text                  string
-email                 string
-url                   string
-textarea              string
-date                  string
-datetime              string
-time                  string
-select                string, int
-hidden                boolean, int, float, string
-
-"""
 
 
 def cap_value(x, max_x, min_x=None):
@@ -55,45 +34,141 @@ class DataModel:
         self.key = key
         self.fields = {field.name: field for field in fields}
 
-        # Database storing
-        self.db_table = ""
+        # Optional
+        self.db_table = key                            # Table name in db
+        self.error_class = ""                          # Class that the input and label will get in case of error
+        self.label_add_asterisk_if_required = True     # Add an asterix in the html form
 
-    def create(self):
-        """
-        Create table in database
-        """
-        pass
+        # Store last validation's errors
+        self.fields_with_errors = []
 
     def validate(self, record):
         """
-        Validate record
-        """
-        pass
+        Validates the record, checking the validation function
+        for each field (after parsing). It also checks if
+        required fields are present.
 
-    def parse(self, record):
+        If valid, returns a new record with parsed data and
+        missing fields with default values.
+        If not valid, returns None
+
+        If not valid, errors will be stored in the list
+        self.fields_with_errors
         """
-        Parse record
-        """
+
+        # Clear errors and validated record
+        self.fields_with_errors.clear()
+
+        # Store validated fields
         new_record = {}
 
-        # Parse each field
-        for field in record:
-            if field in self.fields:
-                parser_ = self.fields[field].parser
-                if parser_ is None:
-                    new_record[field] = record[field]
-                else:
-                    try:
-                        new_record[field] = parser_(record[field])
-                    except:
-                        pass
+        if "id_" not in record:
+            self.fields_with_errors.append("id_")
+        else:
+            new_record["id_"] = record["id_"]
 
-        # Check that all required fields are present
         for field in self.fields:
-            if self.fields[field].required and field not in new_record:
-                return {}
+            df = self.fields[field]
 
-        return new_record
+            # Check if field in record
+            if df.name not in record:
+                if df.required:
+                    self.fields_with_errors.append(df.name)
+                elif df.default is not None:
+                    new_record[field] = df.default
+
+            # Check if field is valid (may raise an exception)
+            elif df.validator is not None:
+
+                try:
+                    # Parse value
+                    if df.parser is not None:
+                        value = df.parser(record[field])
+                    else:
+                        value = record[field]
+
+                    new_record[field] = value
+
+                    # Check validator
+                    if not df.validator(value):
+                        self.fields_with_errors.append(df.name)
+
+                except:
+                    self.fields_with_errors.append(df.name)
+
+        if len(self.fields_with_errors) == 0:
+            return new_record
+        else:
+            return None
+
+    def to_html(self, record={}, as_table=True):
+        """
+        Returns a html form. The form inputs are organized
+        in a table if 'as_table' is True, else they are
+        placed one after the other
+        If record is {}, returns an empty form (new)
+        """
+        html = ""
+
+        # Add id_ input
+        if "id_" not in record:
+            if as_table: html += "<tr><th>"
+            html += f'<label for="id_">id_{" (*)" if self.label_add_asterisk_if_required else ""}</label>'
+            if as_table: html += "</th><td>"
+            html += '<input type="text" name="id_" required></td>'
+            if as_table: html += "</td></tr>"
+
+        else:
+            html += f'<input type="hidden" name="id_" value="{record["id_"]}">'
+
+        for field in self.fields:
+            df = self.fields[field]
+
+            # Add label
+            if as_table: html += "<tr><th>"
+            html += f'<label for="{df.name}"'
+            if df.name in self.fields_with_errors: html += f' class="{self.error_class}"'
+            html += '>' + df.html_label
+            if self.label_add_asterisk_if_required and df.required: html += " (*)"
+            html += '</label>'
+
+            # Add input
+            if as_table: html += "</th><td>"
+
+            # Type: select for foreign key
+            # TODO
+
+            # Type: select
+            if df.html_input == "select":
+                html += f'<select name="{df.name}"'
+                if df.required: html += " required"
+                if df.html_read_only: html += " disabled"
+                html += ">"
+                for c in df.choices:
+                    html += f'<option value={c}'
+                    if df.name in record:
+                        if c == record[df.name]: html += " selected"
+                    elif df.default == c:
+                        html += " selected"
+                    html += f'>{df.choices[c]}</option>'
+                html += "</select>"
+
+            # Other types
+            else:
+                html += f'<input type="{df.html_input}" name="{df.name}" placeholder="{df.html_help}"'
+                if df.name in self.fields_with_errors: html += f' class="{self.error_class}"'
+                if df.name in record: html += f' value="{record[df.name]}"'
+                elif df.default is not None:
+                    if df.type == "bool": html += "checked"
+                    else: html += f' value="{df.default}"'
+                if df.required: html += f' required'
+                if df.html_read_only: html += f' readonly'
+                html += '>'
+
+            if as_table: html += "</td></tr>"
+            continue
+
+        return html
 
 
 class DataField:
@@ -127,6 +202,18 @@ class DataField:
     # ==================================================================================================================
 
     @staticmethod
+    def text(name, max_length=255, **kwargs):
+        if max_length > 65535: raise Exception("Text max_length must be between 0 and 65535")
+
+        return DataField(name=name,
+                         type="text",
+                         max_length=max_length,
+                         validator=lambda x, l=max_length: isinstance(x, str) and len(x) <= l,
+                         parser=str,
+                         html_input="select" if "choices" in kwargs else "text",
+                         **kwargs)
+
+    @staticmethod
     def integer(name, **kwargs):
         return DataField(name=name,
                          type="int",
@@ -145,18 +232,6 @@ class DataField:
                          **kwargs)
 
     @staticmethod
-    def text(name, max_length=255, **kwargs):
-        if max_length > 65535: raise Exception("Text max_length must be between 0 and 65535")
-
-        return DataField(name=name,
-                         type="text",
-                         max_length=max_length,
-                         validator=lambda x, l=max_length: isinstance(x, str) and len(x) <= l,
-                         parser=str,
-                         html_input="select" if "choices" in kwargs else "text",
-                         **kwargs)
-
-    @staticmethod
     def bool(name, **kwargs):
         return DataField(name=name,
                          type="bool",
@@ -165,29 +240,10 @@ class DataField:
                          html_input="checkbox",
                          **kwargs)
 
-    # @staticmethod
-    # def id(name, **kwargs):
-    #     return DataField(name=name,
-    #                      type="id",
-    #                      validator=lambda x: isinstance(x, str),
-    #                      parser=str,
-    #                      default=str(uuid.uuid4()),
-    #                      html_input="text",
-    #                      **kwargs)
-    #
-    # @staticmethod
-    # def autoid(name, **kwargs):
-    #     return DataField(name=name,
-    #                      type="autoid",
-    #                      autoincrement=True,
-    #                      html_input="hidden",
-    #                      **kwargs)
-
     @staticmethod
-    def foreign_key(name, namespace_key, foreign_field, foreign_display, **kwargs):
+    def foreign_key(name, namespace_key, foreign_display, **kwargs):
         return DataField(name=name,
                          foreign_key=namespace_key,        # Namespace key (table) to which the foreign key points
-                         foreign_field=foreign_field,      # Related field in the foreign key (usually 'id_')
                          foreign_display=foreign_display,  # A string (field) or a function (of record) (see docs)
                          html_input="select",
                          **kwargs)
@@ -230,7 +286,7 @@ class DataField:
         return DataField(name=name,
                          type="date",
                          validator=lambda x: isinstance(x, str),
-                         parser=lambda x: parse_date_to_string(x).split("T")[0],
+                         parser=parse_date_to_string,
                          html_input="date",
                          **kwargs)
 
@@ -239,8 +295,6 @@ class DataField:
         return DataField(name=name,
                          type="datetime",
                          validator=lambda x: isinstance(x, str),
-                         parser=lambda x: parse_date(x).strftime("%Y-%m-%d %H:%M:%S"),
-                         html_input="datetime",
+                         parser=lambda x: parse_datetime(x).strftime("%Y-%m-%d %H:%M:%S"),
+                         html_input="datetime-local",
                          **kwargs)
-
-

@@ -1,5 +1,5 @@
 from ..interfaces import SqliteInterfaceConnection
-from .sql_generic import SQLGenericDB
+from ._sql_generic import SQLGenericDB
 import sqlite3
 
 
@@ -29,6 +29,11 @@ class SqliteConnection(SqliteInterfaceConnection):
 
     def write(self, key, data):
         self.client = sqlite3.connect(self.file)
-        r = self.generic_engine.write(key, data)
+        self.generic_engine.write(key, data)
+        self.client.close()
+
+    def run_query(self, query):
+        self.client = sqlite3.connect(self.file)
+        r = self.generic_engine.run_query(query)
         self.client.close()
         return r

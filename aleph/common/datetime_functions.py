@@ -19,7 +19,7 @@ def now(string=False, unixts=False):
     else: return t
 
 
-def parse_date(date, round_if_string=False):
+def parse_datetime(date, round_if_string=False):
     """
     Parses a date to a datetime object; date can be:
     - int (seconds from today)
@@ -49,9 +49,16 @@ def parse_date(date, round_if_string=False):
 
     # string
     elif isinstance(date, str):
-        date = parser.parse(date).astimezone(tzutc())
-        if round_if_string and date.hour == 0 and date.minute == 0 and date.second == 0:
-            date = date + datetime.timedelta(days=1)
+
+        # parse string to int
+        if date.isdecimal():
+            date = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(seconds=int(date))
+
+        # try parse
+        else:
+            date = parser.parse(date).astimezone(tzutc())
+            if round_if_string and date.hour == 0 and date.minute == 0 and date.second == 0:
+                date = date + datetime.timedelta(days=1)
 
     # datetime object
     elif isinstance(date, datetime.datetime):
@@ -60,7 +67,7 @@ def parse_date(date, round_if_string=False):
     return date
 
 
-def date_to_string(date, timezone="UTC"):
+def datetime_to_string(date, timezone="UTC"):
     """
     Takes a datetime.datetime and returns a string in the given timezone
     """
@@ -72,13 +79,13 @@ def date_to_string(date, timezone="UTC"):
     else: return date.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def parse_date_to_string(date, timezone="UTC"):
+def parse_datetime_to_string(date, timezone="UTC"):
     """
     Shortcut to date_to_string(parse_date(date), timezone)
     """
     if timezone == "UTC" and isinstance(date, str) and date.endswith("Z"): return date
 
-    date = parse_date(date)
+    date = parse_datetime(date)
     if timezone == "UTC": date = date.astimezone(tzutc())
     elif timezone == "Local": date = date.astimezone(tzlocal())
     else: date = date.astimezone(pytz.timezone(timezone))
@@ -87,9 +94,15 @@ def parse_date_to_string(date, timezone="UTC"):
     return date.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def parse_time_to_string(time):
+def parse_time_to_string(t):
     """
     Receives a time and returns a string HH:MM:SS.ffffff
     """
-    return parser.parse(time).strftime("%H:%M:%S.%f")
+    return parser.parse(t).strftime("%H:%M:%S.%f")
 
+
+def parse_date_to_string(date):
+    """
+    Parses only a date (not a datetime)
+    """
+    return parser.parse(date).strftime("%Y-%m-%d")

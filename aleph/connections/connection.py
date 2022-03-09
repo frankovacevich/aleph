@@ -28,6 +28,7 @@ class Connection:
         self.report_by_exception = False          # When reading data, only returns changing values
         self.store_and_forward = False            # Resends failed writes
         self.include_time_on_write = True         # Automatically adds the current timestamp when writing
+        self.clean_on_write = True                # Clean data when writing
 
         # Internal
         self.__connected__ = False
@@ -211,7 +212,7 @@ class Connection:
         data = self.safe_read(key, **kwargs)
         self.on_new_data(key, data)
 
-    def open_async(self, key, **kwargs):
+    def open_async(self):
         """
         Executes the open function without blocking the main thread
         """
@@ -297,7 +298,7 @@ class Connection:
 
         # Get and set last read time
         last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = parse_date(last_times.pop(key, time.time()))
+        last_t = parse_datetime(last_times.pop(key, time.time()))
         last_times[key] = time.time()
         # TODO: check time.time() precision
 
@@ -318,11 +319,11 @@ class Connection:
         if "fields" in kwargs:
             fields = kwargs["fields"]
             if fields == "*" or isinstance(fields, list): args["fields"] = fields
-            elif "," in fields: args["fields"] = fields.repewlace(" ", "").split(",")
+            elif "," in fields: args["fields"] = fields.replace(" ", "").split(",")
             elif isinstance(fields, str): args["fields"] = [fields]
 
-        if "since" in kwargs: args["since"] = parse_date(kwargs["since"])
-        if "until" in kwargs: args["until"] = parse_date(kwargs["until"])
+        if "since" in kwargs: args["since"] = parse_datetime(kwargs["since"])
+        if "until" in kwargs: args["until"] = parse_datetime(kwargs["until"])
         if "limit" in kwargs: args["limit"] = int(kwargs["limit"])
         if "offset" in kwargs: args["offset"] = int(kwargs["offset"])
         if "timezone" in kwargs: args["timezone"] = kwargs["timezone"]
@@ -360,24 +361,21 @@ class Connection:
                 if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
 
             # Check timestamp
-            if self.check_timestamp_on_read:
+            if self.check_timestamp_on_read and "t" in record:
                 # Record has a timestamp
-                if "t" not in record: record["t"] = now()
-                else: record["t"] = parse_date(record["t"])
+                # if "t" not in record: record["t"] = now()
+                # else: record["t"] = parse_datetime(record["t"])
+                record["t"] = parse_datetime(record["t"])
                 # Timestamp in valid range
-                if kwargs["since"] is not None and kwargs["since"] > record["t"]:
-                    print("ACA", kwargs["since"], record["t"])
-                    continue
-                if kwargs["until"] is not None and kwargs["until"] < record["t"]:
-                    print("ALLA")
-                    continue
+                if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
+                if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
                 # Timestamp in timezone
-                record["t"] = date_to_string(record["t"], kwargs["timezone"])
+                record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
             # Check timestamp is in the correct timezone
-            elif kwargs["timezone"] != "UTC":
-                if "t" not in record: record["t"] = now()
-                record["t"] = parse_date_to_string(record["t"], kwargs["timezone"])
+            elif kwargs["timezone"] != "UTC" and "t" in record:
+                # if "t" not in record: record["t"] = now()
+                record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
 
             cleaned_data.append(record)
             continue
@@ -410,11 +408,13 @@ class Connection:
 
             # Time
             if "t" not in record and self.include_time_on_write: record["t"] = now(string=True)
-            else: record["t"] = parse_date_to_string(record["t"])
+            else: record["t"] = parse_datetime_to_string(record["t"])
             # Flatten record
             record = flatten_dict(record)
             # Check model
-            if key in self.models: record = self.models[key].parse(record)
+            if key in self.models:
+                record = self.models[key].validate(record)
+                if record is None: continue
             # Check report by exception
             if self.report_by_exception: record = self.__check_report_by_exception__(key, record)
             # Check that record is not empty

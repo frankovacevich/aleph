@@ -3,7 +3,6 @@ This is not a connection! Only a helper
 """
 
 from ....common.database_field_parse import *
-from ....common.data_filter import DataFilter
 
 
 class SQLGenericDB:
@@ -36,7 +35,7 @@ class SQLGenericDB:
 
         # Fields
         fields = args.pop("fields", "*")
-        if fields != "*": fields = ",".join(fields)
+        if fields != "*": fields = ", ".join(map(db_parse_field, fields))
 
         # We collect all where clauses in a list
         where_clauses = []
@@ -65,8 +64,8 @@ class SQLGenericDB:
         limit_and_offset = ""
         limit = args.pop("limit", 0)
         offset = args.pop("offset", 0)
-        if limit != 0: limit_and_offset = " LIMIT " + str(limit)
-        if offset != 0: limit_and_offset = " OFFSET " + str(offset)
+        if limit != 0: limit_and_offset += " LIMIT " + str(limit)
+        if offset != 0: limit_and_offset += " OFFSET " + str(offset)
 
         # Order: influx only supports sorting by time
         order = args.pop("order", None)
@@ -85,6 +84,7 @@ class SQLGenericDB:
         result = []
         for record in data:
             dict_record = dict(zip(columns, record))
+            if "t" in dict_record: dict_record["t"] = dict_record["t"].replace(" ", "T") + "Z"
             result.append({f: dict_record[f] for f in dict_record if f not in ["id", "deleted_"]})
 
         return result
@@ -191,6 +191,21 @@ class SQLGenericDB:
                 if len(index_name) > 64: index_name = index_name[0:64]
                 sql = 'CREATE INDEX IF NOT EXISTS ' + index_name + ' ON ' + key + ' (id_)'
                 cur.execute(sql)
+
+    def run_query(self, query):
+        # Run query
+        cur = self.client.cursor()
+        cur.execute(query)
+
+        # Get columns and data
+        columns = [db_deparse_field(column[0]) for column in cur.description]
+        data = cur.fetchall()
+        result = []
+        for record in data:
+            dict_record = dict(zip(columns, record))
+            result.append({f: dict_record[f] for f in dict_record})
+
+        return result
 
     def __sql_bool__(self, v):
         if self.dbs == "postgres": return "TRUE" if v else "FALSE"
