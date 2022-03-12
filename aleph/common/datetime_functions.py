@@ -34,7 +34,7 @@ def parse_datetime(date, round_if_string=False):
     (previously it was "YYYY-MM-DD 23:59:59") instead of "YYYY-MM-DD 00:00:00"
     """
 
-    # int (days from today)
+    # int (seconds from today)
     if isinstance(date, int):
         date = datetime.datetime.now().astimezone(tzutc()) - datetime.timedelta(seconds=date)
 

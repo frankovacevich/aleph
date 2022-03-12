@@ -38,12 +38,12 @@ For numeric (int or float) values (here X and Y are numeric strings):
 - "x": "(X;Y]": value of "x" between X and Y (including Y but not X)
 - "x": "[X;Y)": value of "x" between X and Y (including X but not Y)
 
-For strings:
-- "x": "!=Some string": value of "x" not equal to "Some string"
-- "x": "=@Some string": value of "x" contains "Some string"
-- "x": "!@Some string": value of "x" does not contain "Some string"
-- "x": "=^Some string": value of "x" starts with "Some string"
-- "x": "=$Some string": value of "x" ends with "Some string"
+For strings (here A and B are strings):
+- "x": "!=A": value of "x" not equal to "A"
+- "x": "=@A": value of "x" contains "A"
+- "x": "!@A": value of "x" does not contain "A"
+- "x": "=^A": value of "x" starts with "A"
+- "x": "=$A": value of "x" ends with "A"
 
 See https://developer.matomo.org/api-reference/reporting-api-segmentation
 
@@ -71,7 +71,7 @@ class DataFilter:
 
             or_clauses = []
             for v in self.parsed_filter[field]:
-                if isinstance(v, str): v = v.replace(" ", "")
+                #if isinstance(v, str): v = v.replace(" ", "")
 
                 try:
                     # Numeric
@@ -125,7 +125,7 @@ class DataFilter:
 
             or_clauses = []
             for v in self.parsed_filter[field]:
-                if isinstance(v, str): v = v.replace(" ", "")
+                # if isinstance(v, str): v = v.replace(" ", "")
                 clause = {}
                 try:
                     if not isinstance(v, str): clause[x] = v
@@ -192,7 +192,7 @@ class DataFilter:
             filters = parsed_filter[field]
 
             for v in filters:
-                if isinstance(v, str): v = v.replace(" ", "")
+                # if isinstance(v, str): v = v.replace(" ", "")
 
                 try:
                     if not isinstance(v, str): fun = lambda x, f=v: x == f

@@ -166,7 +166,7 @@ class SQLGenericDB:
                 elif isinstance(v, int): query_values += "" + field_id + "=" + str(v) + ","
                 elif isinstance(v, float): query_values += "" + field_id + "=" + str(v) + ","
 
-            if f in fmap or f in ["t", "id", "t_", "delete_"]: continue
+            if f in fmap or f in ["t", "id", "t_", "deleted_"]: continue
             if isinstance(v, str): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BOOL;'
             elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' INT;'

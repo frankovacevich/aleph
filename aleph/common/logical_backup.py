@@ -9,16 +9,21 @@ import time
 class LogicalBackup:
 
     def __init__(self, **kwargs):
+        self.key_read = ""
+        self.key_write = ""
+        self.connection = None
+
         self.since = None
         self.until = None
         self.verbose = True
         self.filename = "backup.lzma"
-        self.key = None
         self.step = 100000  # Records per step
 
         self.__dict__.update(kwargs)
 
-    def backup(self, connection):
+    def backup(self):
+        if self.connection is None: raise Exception("Undefined connection to write to")
+
         backup_file = lzma.open(self.filename, "wb")
 
         total = 0   # Count how many records are backed up
@@ -26,13 +31,13 @@ class LogicalBackup:
 
         if self.verbose:
             print("Saving backup ...")
-            connection.on_read_error = lambda e: print(e.message_and_traceback())
+            self.connection.on_read_error = lambda e: print(e.message_and_traceback())
 
         while True:
             if self.verbose: print("Reading records from", off, " to", off + self.step)
 
             # Read data
-            data = connection.safe_read(self.key, since=self.since, until=self.until, limit=self.step, offset=off)
+            data = self.connection.safe_read(self.key_read, since=self.since, until=self.until, limit=self.step, offset=off)
 
             # Update total and offset
             if len(data) == 0: break
@@ -48,10 +53,12 @@ class LogicalBackup:
             print("Finished backup. Total number of records:", total)
         return
 
-    def restore(self, connection):
+    def restore(self):
+        if self.connection is None: raise Exception("Undefined connection to write to")
+
         if self.verbose:
             print("Restoring data")
-            connection.on_write_error = lambda e: print(e.message_and_traceback())
+            self.connection.on_write_error = lambda e: print(e.message_and_traceback())
 
         i = 0
         total = 0
@@ -68,7 +75,7 @@ class LogicalBackup:
                 # Get data from chunk and write
                 data = json.loads(chunk.decode())
                 total += len(data)
-                connection.safe_write(self.key, data)
+                self.connection.safe_write(self.key_write, data)
 
                 if self.verbose:
                     print("Elapsed time:", round(time.time() - t0, 2), "seconds.", "Total", len(data), "records")

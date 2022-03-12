@@ -67,6 +67,9 @@ class DataModel:
         else:
             new_record["id_"] = record["id_"]
 
+        if "t" in record:
+            new_record["t"] = record["t"]
+
         for field in self.fields:
             df = self.fields[field]
 
@@ -78,8 +81,7 @@ class DataModel:
                     new_record[field] = df.default
 
             # Check if field is valid (may raise an exception)
-            elif df.validator is not None:
-
+            else:
                 try:
                     # Parse value
                     if df.parser is not None:
@@ -87,11 +89,11 @@ class DataModel:
                     else:
                         value = record[field]
 
-                    new_record[field] = value
-
                     # Check validator
-                    if not df.validator(value):
+                    if df.validator is not None and not df.validator(value):
                         self.fields_with_errors.append(df.name)
+                    else:
+                        new_record[field] = value
 
                 except:
                     self.fields_with_errors.append(df.name)
@@ -246,6 +248,7 @@ class DataField:
                          foreign_key=namespace_key,        # Namespace key (table) to which the foreign key points
                          foreign_display=foreign_display,  # A string (field) or a function (of record) (see docs)
                          html_input="select",
+                         parser=str,
                          **kwargs)
 
     @staticmethod

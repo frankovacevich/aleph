@@ -8,6 +8,8 @@ class SqliteConnection(SqliteInterfaceConnection):
     def __init__(self, client_id=""):
         super().__init__(client_id)
         self.generic_engine = SQLGenericDB("sqlite", self.client)
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
 
     # ===================================================================================
     # Open
