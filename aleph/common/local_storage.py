@@ -12,7 +12,6 @@ class LocalStorage:
 
     # Predefined keys
     SNF_BUFFER = "_snf_buffer"
-    LAST_RECORD_SENT = "_last_record"
     LAST_TIME_READ = "_last_time"
     PAST_VALUES = "_past_values"
 
