@@ -1,19 +1,18 @@
-"""
-This database connection only stores time series data
-"""
-
 import pymongo
-from ..interfaces import MongoDBInterfaceConnection
+from ..generic.mongodb import MongoDBConnection
 from ....common.database_field_parse import *
-from ....common.data_filter import DataFilter
 
 
-class MongoDBTimeSeriesConnection(MongoDBInterfaceConnection):
+class MongoDBTimeSeriesConnection(MongoDBConnection):
+
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
 
     def read(self, key, **kwargs):
         # Parse args and key
         args = self.__clean_read_args__(key, **kwargs)
-        self.skip_read_cleaning = True
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)

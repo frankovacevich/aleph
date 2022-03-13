@@ -1,27 +1,31 @@
-from ..interfaces import MySQLInterfaceConnection
-from ._sql_generic import SQLGenericDB
+from ...connection import Connection
+from .sql_generic import SQLGenericDB
+import mysql.connector
 
 
-class MySQLConnection(MySQLInterfaceConnection):
+class MySQLConnection(Connection, SQLGenericDB):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
-        self.generic_engine = SQLGenericDB("mysql", self.client)
+        self.server = "localhost"
+        self.username = ""
+        self.password = ""
+        self.port = 3306
+        self.database = "main"
 
-    # ===================================================================================
-    # Open
-    # ===================================================================================
+        # Private
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
+
+        self.client = None
+        self.dbs = "mysql"
+
     def open(self):
-        super().open()
-        self.generic_engine.client = self.client
-        self.generic_engine.open()
+        self.client = mysql.connector.connect(host=self.server,
+                                              port=self.port,
+                                              database=self.database,
+                                              user=self.username,
+                                              password=self.password)
 
     def close(self):
         self.client.close()
-        super().close()
-
-    def read(self, key, **kwargs):
-        return self.generic_engine.read(key, **kwargs)
-
-    def write(self, key, data):
-        self.generic_engine.write(key, data)

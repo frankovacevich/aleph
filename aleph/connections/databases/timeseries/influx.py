@@ -1,13 +1,6 @@
-"""
-
-"""
-
-import datetime
-import math
 from influxdb import InfluxDBClient
 from ...connection import Connection
 from ....common.database_field_parse import *
-from ....common.data_filter import DataFilter
 
 
 class InfluxDBTimeSeriesConnection(Connection):
@@ -23,6 +16,9 @@ class InfluxDBTimeSeriesConnection(Connection):
         self.database = "main"
 
         # Internal
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
+
         self.client = None
         self.data_buffer = []
         self.buffer_size = 10000

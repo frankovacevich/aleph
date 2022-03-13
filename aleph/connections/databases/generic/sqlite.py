@@ -1,41 +1,25 @@
-from ..interfaces import SqliteInterfaceConnection
-from ._sql_generic import SQLGenericDB
+from ...connection import Connection
+from .sql_generic import SQLGenericDB
 import sqlite3
 
 
-class SqliteConnection(SqliteInterfaceConnection):
+class SqliteConnection(Connection, SQLGenericDB):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
-        self.generic_engine = SQLGenericDB("sqlite", self.client)
+        self.file = "./main.db"
+
+        # Private
         self.check_filters_on_read = False
         self.check_timestamp_on_read = False
 
-    # ===================================================================================
-    # Open
-    # ===================================================================================
+        self.client = None
+        self.dbs = "sqlite"
+
     def open(self):
+        self.client = sqlite3.connect(self.file)
         super().open()
-        self.generic_engine.client = self.client
-        self.generic_engine.open()
 
     def close(self):
         self.client.close()
         super().close()
-
-    def read(self, key, **kwargs):
-        self.client = sqlite3.connect(self.file)
-        r = self.generic_engine.read(key, **kwargs)
-        self.client.close()
-        return r
-
-    def write(self, key, data):
-        self.client = sqlite3.connect(self.file)
-        self.generic_engine.write(key, data)
-        self.client.close()
-
-    def run_query(self, query):
-        self.client = sqlite3.connect(self.file)
-        r = self.generic_engine.run_query(query)
-        self.client.close()
-        return r

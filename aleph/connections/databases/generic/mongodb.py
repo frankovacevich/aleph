@@ -1,16 +1,38 @@
-"""
-With this connection records are stored as flat. It does not support
-nested records. Nested records are flattened on safe_write and dots
-are replaced here by two underscores ("__").
-"""
-
-import pymongo
-from ..interfaces import MongoDBInterfaceConnection
 from ....common.database_field_parse import *
-from ....common.data_filter import DataFilter
+from ...connection import Connection
+import urllib.parse
+import pymongo
 
 
-class MongoDBConnection(MongoDBInterfaceConnection):
+class MongoDBConnection(Connection):
+
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.server = "localhost"
+        self.port = 27017
+        self.username = None
+        self.password = None
+        self.database = "main"
+
+        # Client
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
+
+        self.client = None
+
+    def open(self):
+        url = "mongodb://"
+        if self.username is not None: url += urllib.parse.quote(self.username)
+        if self.password is not None: url += ":" + urllib.parse.quote(self.password)
+        if self.username is not None: url += "@"
+        url += self.server + ":" + str(self.port)
+        self.client = pymongo.MongoClient(url)
+        super().open()
+
+    def close(self):
+        if self.client is not None: self.client.close()
+        self.client = None
+        super().close()
 
     def read(self, key, **kwargs):
         # Parse args and key
@@ -77,3 +99,4 @@ class MongoDBConnection(MongoDBInterfaceConnection):
         # Create indices
         collection.create_index('t')
         collection.create_index('id_')
+

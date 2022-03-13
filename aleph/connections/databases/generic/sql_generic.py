@@ -1,17 +1,14 @@
-"""
-This is not a connection! Only a helper
-"""
-
 from ....common.database_field_parse import *
 
 
 class SQLGenericDB:
 
-    def __init__(self, dbs, client):
-        self.dbs = dbs
-        self.client = client
+    def __init__(self):
+        self.dbs = "sqlite"  # sqlite, mariadb, mysql, postgres
+        self.client = None
+        self.first_read = False
 
-    def open(self):
+    def create_metadata_table(self):
         # Create metadata table
         cur = self.client.cursor()
 
@@ -29,6 +26,10 @@ class SQLGenericDB:
         cur.close()
 
     def read(self, key, **kwargs):
+        if self.first_read:
+            self.first_read = False
+            self.create_metadata_table()
+
         # Parse args and key
         args = kwargs
         key = db_parse_key(key)

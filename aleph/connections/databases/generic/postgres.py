@@ -1,27 +1,33 @@
-from ..interfaces import PostgresInterfaceConnection
-from ._sql_generic import SQLGenericDB
+from ...connection import Connection
+import psycopg2
 
 
-class PostgresConnection(PostgresInterfaceConnection):
+class PostgresConnection(Connection):
 
-    def __init__(self):
-        super().__init__()
-        self.generic_engine = SQLGenericDB("postgres", self.client)
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.server = "localhost"
+        self.username = ""
+        self.password = ""
+        self.port = 5432
+        self.database = "main"
 
-    # ===================================================================================
-    # Open
-    # ===================================================================================
+        # Private
+        self.check_filters_on_read = False
+        self.check_timestamp_on_read = False
+
+        self.client = None
+        self.dbs = "postgres"
+
     def open(self):
+        self.client = psycopg2.connect(database=self.database,
+                                       user=self.username,
+                                       password=self.password,
+                                       host=self.server,
+                                       port=self.port
+                                       )
         super().open()
-        self.generic_engine.client = self.client
-        self.generic_engine.open()
 
     def close(self):
         self.client.close()
         super().close()
-
-    def read(self, key, **kwargs):
-        return self.generic_engine.read(key, **kwargs)
-
-    def write(self, key, data):
-        self.generic_engine.write(key, data)
