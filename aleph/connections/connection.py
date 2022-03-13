@@ -17,18 +17,15 @@ class Connection:
         self.local_storage = LocalStorage()       # Local storage instance
 
         # Optional parameters: reading
-        self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
-        self.compare_to_previous_on_read = False  # Use on read function to compare values after reading (see docs)
-        self.check_filters_on_read = True         # Check if fields, filter, limit, offset and order are correct
-        self.check_timestamp_on_read = True       # Check if record time is between since and until
         self.default_subscribe_time_step = 10     # Default time step for continuous reading
+        self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
+        self.clean_on_read = True                 # Check since, until, fields, filter, limit, offset and order
+        self.report_by_exception = False          # When reading data, only returns changing values
 
         # Optional parameters: writing
-        self.models = {}                          # Dict {key: Model} (for data validation)
-        self.report_by_exception = False          # When reading data, only returns changing values
+        self.models = {}                          # Dict {key: DataModel} (for data validation)
         self.store_and_forward = False            # Resends failed writes
-        self.include_time_on_write = True         # Automatically adds the current timestamp when writing
-        self.clean_on_write = True                # Clean data when writing
+        self.clean_on_write = True                # Clean data when writing (adds time)
 
         # Internal
         self.__connected__ = False
@@ -152,8 +149,6 @@ class Connection:
                 last_times[key] = time.time()
                 self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
-            # Compare to past values
-            if self.compare_to_previous_on_read: data = self.__compare_to_previous__(data)
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
             return data
@@ -298,9 +293,8 @@ class Connection:
 
         # Get and set last read time
         last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = parse_datetime(last_times.pop(key, time.time()))
-        last_times[key] = time.time()
-        # TODO: check time.time() precision
+        last_t = parse_datetime(last_times.pop(key, now(unixts=True)))
+        last_times[key] = now(unixts=True)
 
         # Preset args
         args = {
@@ -348,43 +342,49 @@ class Connection:
         if not isinstance(data, list): data = [data]
         cleaned_data = []
 
-        # If no checking needed, return.
-        if not self.check_filters_on_read and not self.check_timestamp_on_read and kwargs["timezone"] == "UTC":
-            return data
+        # Report by exception
+        if self.report_by_exception and len(data) > 0 and "id_" in data[0]:
+            data = self.__report_by_exception_ids__(key, data)
 
         # For each record:
         for record in data:
 
-            # Check filter and fields
-            if self.check_filters_on_read:
-                if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record): continue
-                if kwargs["fields"] != "*": record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
+            if self.report_by_exception and "id_" not in record:
+                record = self.__report_by_exception__(key, record)
 
-            # Check timestamp
-            if self.check_timestamp_on_read and "t" in record:
-                # Record has a timestamp
-                # if "t" not in record: record["t"] = now()
-                # else: record["t"] = parse_datetime(record["t"])
-                record["t"] = parse_datetime(record["t"])
-                # Timestamp in valid range
-                if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
-                if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
-                # Timestamp in timezone
-                record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
+            if self.clean_on_read:
+                # Check filter
+                if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record):
+                    continue
+
+                # Check fields
+                if kwargs["fields"] != "*":
+                    record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
+
+                # Check timestamp
+                if "t" in record:
+                    # Record has a timestamp
+                    record["t"] = parse_datetime(record["t"])
+                    # Timestamp in valid range
+                    if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
+                    if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                    # Timestamp in timezone
+                    record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
             # Check timestamp is in the correct timezone
             elif kwargs["timezone"] != "UTC" and "t" in record:
-                # if "t" not in record: record["t"] = now()
                 record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
 
             cleaned_data.append(record)
             continue
 
-        if self.check_filters_on_read:
+        if self.clean_on_read:
             # Order
             if kwargs["order"] is not None:
-                if kwargs["order"][0] == "-": cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
-                else: cleaned_data.sort(key=lambda x: x[kwargs["order"]])
+                if kwargs["order"][0] == "-":
+                    cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
+                else:
+                    cleaned_data.sort(key=lambda x: x[kwargs["order"]])
 
             # Limit and offset
             if len(cleaned_data) > kwargs["offset"] > 0: cleaned_data = cleaned_data[0:-kwargs["offset"]]
@@ -407,16 +407,18 @@ class Connection:
         for record in data:
 
             # Time
-            if "t" not in record and self.include_time_on_write: record["t"] = now(string=True)
-            else: record["t"] = parse_datetime_to_string(record["t"])
+            if self.clean_on_write:
+                if "t" not in record: record["t"] = now(string=True)
+                else: record["t"] = parse_datetime_to_string(record["t"])
+
             # Flatten record
             record = flatten_dict(record)
+
             # Check model
             if key in self.models:
                 record = self.models[key].validate(record)
                 if record is None: continue
-            # Check report by exception
-            if self.report_by_exception: record = self.__check_report_by_exception__(key, record)
+
             # Check that record is not empty
             if not self.__check_record_is_not_empty__(record): continue
 
@@ -428,27 +430,6 @@ class Connection:
     def __check_record_is_not_empty__(self, record):
         if len([x for x in record if x not in ["t", "t_", "ignore_", "id_"]]) > 0: return True
         return False
-
-    def __check_report_by_exception__(self, key, record):
-        """
-        Takes a record (dict) and returns a new record with only the fields whose values are
-        different from that of the last_record_sent. The record must be flattened first.
-        """
-
-        # Get last record sent from local storage
-        last_records = self.local_storage.get(LocalStorage.LAST_RECORD_SENT, {})
-        if key not in last_records: last_records[key] = {}
-            
-        # For each field in record, check if changed
-        new_record = {}
-        for v in record:
-            if v in ["t", "t_", "deleted_", "ignore_", "id_"]: continue
-            if v not in last_records[key] or last_records[key][v] != record[v]: new_record[v] = record[v]
-
-        # Store new record to local storage and return
-        last_records[key] = record
-        self.local_storage.set(LocalStorage.LAST_RECORD_SENT, last_records)
-        return new_record
 
     # ===================================================================================
     # Store and forward
@@ -481,9 +462,38 @@ class Connection:
         self.local_storage.set(LocalStorage.SNF_BUFFER, buffer)
 
     # ===================================================================================
-    # Compare to past values
+    # Report by exception
     # ===================================================================================
-    def __compare_to_previous__(self, data):
+
+    # Report by exception if data doesn't have id's
+    def __report_by_exception__(self, key, record):
+        """
+        Takes a record (dict) and returns a new record with only the fields whose values are
+        different from that of the past values. The record must be flattened first.
+        """
+
+        # Get last record sent from local storage
+        past_values = self.local_storage.get(LocalStorage.PAST_VALUES, {})
+        t = time.time()
+        if key not in past_values:
+            past_values[key] = {f: [record[f], t] for f in record}
+            self.local_storage.set(LocalStorage.PAST_VALUES, past_values)
+            return record
+
+        # For each field in record, check if changed
+        new_record = {}
+        for v in record:
+            if v == "t": continue
+            if v not in past_values[key] or past_values[key][v][0] != record[v] or t - past_values[key][v][1] > 43200:
+                new_record[v] = record[v]
+                past_values[key][v] = [record[v], t]
+
+        # Store new record to local storage and return
+        self.local_storage.set(LocalStorage.PAST_VALUES, past_values)
+        return new_record
+
+    # Report by exception if data has id's
+    def __report_by_exception_ids__(self, key, data):
         """
         This method, when called multiple times, returns only the records in data that 
         are different from the previous call. This works by storing the data in the
@@ -498,10 +508,13 @@ class Connection:
         if len(data_as_dict) == 0: return data
 
         # Get past values
-        past_values = self.local_storage.get(LocalStorage.PAST_VALUES)
-        if past_values is None:
-            self.local_storage.set(LocalStorage.PAST_VALUES, data_as_dict)
-            return []
+        past_values = self.local_storage.get(LocalStorage.PAST_VALUES, {})
+        if key not in past_values:
+            past_values[key] = data_as_dict
+            self.local_storage.set(LocalStorage.PAST_VALUES, past_values)
+            return data
+
+        aux_past = past_values[key]
 
         # Create a list to keep the records that are different from past values
         data_that_changed = []
@@ -511,21 +524,22 @@ class Connection:
             changed = False
             
             # If record is new:
-            if record_id not in past_values: changed = True
+            if record_id not in aux_past: changed = True
             # If the # of fields in the past record is different from the new record:
-            elif len(data_as_dict[record_id]) != len(past_values[record_id]): changed = True
+            elif len(data_as_dict[record_id]) != len(aux_past[record_id]): changed = True
             # If some value has changed
-            elif False in [data_as_dict[record_id][v] == past_values[record_id][v] for v in data_as_dict[record_id] if v != "t"]: changed = True
+            elif False in [data_as_dict[record_id][v] == aux_past[record_id][v] for v in data_as_dict[record_id] if v != "t"]: changed = True
             
             # If changed, add to data_that_changed:
             if changed: data_that_changed.append(data_as_dict[record_id].copy())
 
         # For records that are not in the new data, mark as deleted
-        if len(past_values) != len(data_as_dict):
-            for record_id in past_values:
+        if len(aux_past) != len(data_as_dict):
+            for record_id in aux_past:
                 if record_id not in data_as_dict:
                     data_that_changed.append({"id_": record_id, "deleted_": True})
 
+        past_values[key] = data_as_dict
         self.local_storage.set(LocalStorage.PAST_VALUES, data_as_dict)
         return data_that_changed
 
