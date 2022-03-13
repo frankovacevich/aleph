@@ -371,9 +371,13 @@ class Connection:
                     # Timestamp in timezone
                     record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
+                if "t_" in record:
+                    record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
+
             # Check timestamp is in the correct timezone
-            elif kwargs["timezone"] != "UTC" and "t" in record:
-                record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
+            elif kwargs["timezone"] != "UTC":
+                if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
+                if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
 
             cleaned_data.append(record)
             continue

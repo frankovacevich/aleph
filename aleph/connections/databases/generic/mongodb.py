@@ -1,7 +1,10 @@
 from ....common.database_field_parse import *
 from ...connection import Connection
+from ....common.datetime_functions import now
 import urllib.parse
 import pymongo
+import datetime
+
 
 
 class MongoDBConnection(Connection):
@@ -15,8 +18,8 @@ class MongoDBConnection(Connection):
         self.database = "main"
 
         # Client
-        self.check_filters_on_read = False
-        self.check_timestamp_on_read = False
+        self.clean_on_read = False
+        self.add_del_filter = True
 
         self.client = None
 
@@ -37,7 +40,6 @@ class MongoDBConnection(Connection):
     def read(self, key, **kwargs):
         # Parse args and key
         args = self.__clean_read_args__(key, **kwargs)
-        self.skip_read_cleaning = True
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)
@@ -51,7 +53,10 @@ class MongoDBConnection(Connection):
 
         find_filter = {}
         if args["filter"] is not None: find_filter = args["filter"].to_mongodb_filter()
-        deleted_filter = {"deleted_": False}
+
+        deleted_filter = {}
+        if self.add_del_filter: deleted_filter = {"deleted_": False}
+
         filter_ = {"$and": [time_filter, find_filter, deleted_filter]}
 
         # Prepare projection (fields)
@@ -61,36 +66,43 @@ class MongoDBConnection(Connection):
             projection["t"] = True
         projection["_id"] = False
 
-        # Prepare ordering field and direction
-        if args["order"][0] == "-":
-            sorting_field = args["order"][1:]
-            sorting_order = pymongo.DESCENDING
-        else:
-            sorting_field = args["order"]
-            sorting_order = pymongo.ASCENDING
-
         # Get data from collection
         collection = self.client[self.database][key]
         found = collection.find(filter_, projection=projection, limit=args["limit"], skip=args["offset"])
-        found = found.sort([(sorting_field, sorting_order)])
 
-        return list(found)
+        # Order
+        if args["order"] is None:
+            pass
+        elif args["order"][0] == "-":
+            found = found.sort([(args["order"][1:], pymongo.DESCENDING)])
+        else:
+            found = found.sort([(args["order"], pymongo.ASCENDING)])
+
+        return list(map(self.__datetime_to_utc_string__, found))
+
+    def __datetime_to_utc_string__(self, record):
+        record["t"] = record["t"].strftime("%Y-%m-%dT%H:%M:%SZ")
+        if "t_" in record: record["t_"] = record["t_"].strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {db_deparse_field(f): record[f] for f in record}
 
     def write(self, key, data):
         collection = self.client[self.database][db_parse_key(key)]  # [database][collection]
 
         # Upsert
         for record in data:
-            record["t_"] = record["t"]
-            set_record = {f: db_parse_field(record[f]) for f in record}
-            set_record["deleted_"] = False
-            update_record = {f: db_parse_field(record[f]) for f in record if f != "t"}
+
+            # Correct time
+            if "t" not in record: record["t_"] = now()
+            else: record["t_"] = datetime.datetime.strptime(record.pop("t"), "%Y-%m-%dT%H:%M:%SZ")
+
+            # Parse fields
+            set_record = {db_parse_field(f): record[f] for f in record}
 
             # Insert
             if "id_" in record:
-                collection.update({"id_": record["id_"]}, {
+                collection.update_one({"id_": record["id_"]}, {
                     "$set": set_record,
-                    "$setOnInsert": update_record,
+                    "$setOnInsert": {"deleted_": False, "t": record["t_"]},
                 }, upsert=True)
 
             else:
@@ -99,4 +111,3 @@ class MongoDBConnection(Connection):
         # Create indices
         collection.create_index('t')
         collection.create_index('id_')
-

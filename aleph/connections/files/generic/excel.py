@@ -27,7 +27,7 @@ class ExcelConnection(Connection):
         self.temp_folder = ""
 
         # Set compare to previous to True
-        self.compare_to_previous_on_read = True
+        self.report_by_exception = True
 
         # Private
         self.file_handler = None
