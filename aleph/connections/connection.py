@@ -538,13 +538,13 @@ class Connection:
             if changed: data_that_changed.append(data_as_dict[record_id].copy())
 
         # For records that are not in the new data, mark as deleted
-        if len(aux_past) != len(data_as_dict):
-            for record_id in aux_past:
-                if record_id not in data_as_dict:
-                    data_that_changed.append({"id_": record_id, "deleted_": True})
+        # if len(aux_past) != len(data_as_dict):
+        #     for record_id in aux_past:
+        #         if record_id not in data_as_dict:
+        #             data_that_changed.append({"id_": record_id, "deleted_": True})
 
         past_values[key] = data_as_dict
-        self.local_storage.set(LocalStorage.PAST_VALUES, data_as_dict)
+        self.local_storage.set(LocalStorage.PAST_VALUES, past_values)
         return data_that_changed
 
     # ===================================================================================

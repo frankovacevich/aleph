@@ -20,7 +20,6 @@ class ExcelTest(ExcelConnection):
 X = ExcelTest()
 X.on_read_error = lambda x: print(x.raise_exception())
 X.open()
-print(X.local_storage.data)
 
 # Create workbook
 wb = openpyxl.Workbook()
@@ -34,8 +33,12 @@ ws.append([3, 4, 5])
 ws.append([6, 7, 8])
 wb.save('test.xlsx')
 
+
 # Read once
 data = X.safe_read("Sheet")
+
+for x in X.local_storage.data["_past_values"]: print("  ", x, X.local_storage.data["_past_values"][x])
+
 print("DATA:")
 for x in data: print(x)
 print("###################")
@@ -49,6 +52,9 @@ wb.save('test.xlsx')
 
 # Read again
 data = X.safe_read("Sheet")
+
+for x in X.local_storage.data["_past_values"]: print("  ", x, X.local_storage.data["_past_values"][x])
+
 print("DATA:")
 for x in data: print(x)
 print("###################")
@@ -68,6 +74,9 @@ wb.save('test.xlsx')
 
 # Read again
 data = X.safe_read("Sheet")
+
+for x in X.local_storage.data["_past_values"]: print("  ", x, X.local_storage.data["_past_values"][x])
+
 print("DATA:")
 for x in data: print(x)
 print("###################")
