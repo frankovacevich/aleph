@@ -52,13 +52,20 @@ See https://developer.matomo.org/api-reference/reporting-api-segmentation
 import json
 
 
+def str2num(value):
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
 class DataFilter:
 
     def __init__(self):
         self.filter = None         # None or dict
         self.parsed_filter = None  # None or dict
 
-    def to_sql_where_clause(self, field_map={}):
+    def to_sql_where_clause(self, field_map=None):
         """
         Returns a string that serves as SQL WHERE clause
         """
@@ -67,52 +74,47 @@ class DataFilter:
         and_clauses = []
         for field in self.parsed_filter:
             x = field
-            if field in field_map: x = field_map[field]
+            if field_map is not None: x = field_map(x)
 
             or_clauses = []
             for v in self.parsed_filter[field]:
-                #if isinstance(v, str): v = v.replace(" ", "")
 
-                try:
-                    # Numeric
-                    if isinstance(v, bool): clause = x + " IS " + ("" if v else "NOT ") + "TRUE"
-                    elif isinstance(v, int) or isinstance(v, float): clause = x + " = " + str(v)
-                    elif v.startswith("=="): clause = x + " = " + v[2:]
-                    elif v.startswith("<="): clause = x + " <= " + v[2:]
-                    elif v.startswith(">="): clause = x + " >= " + v[2:]
-                    elif v.startswith("<"): clause = x + " < " + v[1:]
-                    elif v.startswith(">"): clause = x + " > " + v[1:]
+                # Numeric
+                if isinstance(v, bool): clause = x + " IS " + ("" if v else "NOT ") + "TRUE"
+                elif isinstance(v, int) or isinstance(v, float): clause = x + " = " + str(v)
+                elif v.startswith("=="): clause = x + " = " + v[2:]
+                elif v.startswith("<="): clause = x + " <= " + v[2:]
+                elif v.startswith(">="): clause = x + " >= " + v[2:]
+                elif v.startswith("<"): clause = x + " < " + v[1:]
+                elif v.startswith(">"): clause = x + " > " + v[1:]
 
-                    # String
-                    elif v.startswith("!="): clause = x + " <> '" + v[2:] + "'"
-                    elif v.startswith("=@"): clause = "CONTAINS(" + x + ", '" + v[2:] + "')"
-                    elif v.startswith("!@"): clause = "NOT CONTAINS(" + x + ", '" + v[2:] + "')"
-                    elif v.startswith("=^"): clause = x + " LIKE '%" + v[2:] + "'"
-                    elif v.startswith("=$"): clause = x + " LIKE '" + v[2:] + "%'"
+                # String
+                elif v.startswith("!="): clause = x + " <> '" + v[2:] + "'"
+                elif v.startswith("=@"): clause = "CONTAINS(" + x + ", '" + v[2:] + "')"
+                elif v.startswith("!@"): clause = "NOT CONTAINS(" + x + ", '" + v[2:] + "')"
+                elif v.startswith("=^"): clause = x + " LIKE '%" + v[2:] + "'"
+                elif v.startswith("=$"): clause = x + " LIKE '" + v[2:] + "%'"
 
-                    # Between numbers
-                    elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
-                        b = v[1:-1].split(";")
-                        if v[0] == "[" and v[-1] == "]":  clause = "(" + x + " >= " + b[0] + " AND " + x + " <= " + b[1] + ")"
-                        elif v[0] == "(" and v[-1] == ")":  clause = "(" + x + " > " + b[0] + " AND " + x + " < " + b[1] + ")"
-                        elif v[0] == "(" and v[-1] == "]":  clause = "(" + x + " > " + b[0] + " AND " + x + " <= " + b[1] + ")"
-                        elif v[0] == "[" and v[-1] == ")":  clause = "(" + x + " >= " + b[0] + " AND " + x + " < " + b[1] + ")"
-                        else: clause = x + " = '" + v + "'"
+                # Between numbers
+                elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
+                    b = v[1:-1].split(";")
+                    if v[0] == "[" and v[-1] == "]":  clause = "(" + x + " >= " + b[0] + " AND " + x + " <= " + b[1] + ")"
+                    elif v[0] == "(" and v[-1] == ")":  clause = "(" + x + " > " + b[0] + " AND " + x + " < " + b[1] + ")"
+                    elif v[0] == "(" and v[-1] == "]":  clause = "(" + x + " > " + b[0] + " AND " + x + " <= " + b[1] + ")"
+                    elif v[0] == "[" and v[-1] == ")":  clause = "(" + x + " >= " + b[0] + " AND " + x + " < " + b[1] + ")"
+                    else: clause = x + " = '" + v + "'"
 
-                    # String again
-                    else:
-                        clause = x + " = '" + v + "'"
+                # String again
+                else:
+                    clause = x + " = '" + v + "'"
 
-                    or_clauses.append(clause)
-
-                except:
-                    continue
+                or_clauses.append(clause)
 
             and_clauses.append("(" + " OR ".join(or_clauses) + ")")
 
         return " AND ".join(and_clauses)
 
-    def to_mongodb_filter(self, field_map={}):
+    def to_mongodb_filter(self, field_map=None):
         """
         Returns a dict that serves as a mongodb filter
         """
@@ -121,42 +123,39 @@ class DataFilter:
         and_clauses = []
         for field in self.parsed_filter:
             x = field
-            if field in field_map: x = field_map[field]
+            if field_map is not None: x = field_map(x)
 
             or_clauses = []
             for v in self.parsed_filter[field]:
                 # if isinstance(v, str): v = v.replace(" ", "")
                 clause = {}
-                try:
-                    if not isinstance(v, str): clause[x] = v
 
-                    # Strings
-                    elif v.startswith("!="): clause[x] = {"$ne": v[2:]}
-                    elif v.startswith("=@"): clause[x] = "/" + v[2:] + "/"
-                    elif v.startswith("!@"): clause[x] = {"$not": "/" + v[2:] + "/"}
-                    elif v.startswith("=^"): clause[x] = "/^" + v[2:] + "/"
-                    elif v.startswith("=$"): clause[x] = "/" + v[2:] + "$/"
+                if not isinstance(v, str): clause[x] = v
 
-                    # Numeric
-                    elif v.startswith("=="): clause[x] = float(v[2:])
-                    elif v.startswith("<="): clause[x] = {"$lte": float(v[2:])}
-                    elif v.startswith(">="): clause[x] = {"$gte": float(v[2:])}
-                    elif v.startswith("<"): clause[x] = {"$lt": float(v[2:])}
-                    elif v.startswith(">"): clause[x] = {"$gt": float(v[2:])}
+                # Strings
+                elif v.startswith("!="): clause[x] = {"$ne": v[2:]}
+                elif v.startswith("=@"): clause[x] = "/" + v[2:] + "/"
+                elif v.startswith("!@"): clause[x] = {"$not": "/" + v[2:] + "/"}
+                elif v.startswith("=^"): clause[x] = "/^" + v[2:] + "/"
+                elif v.startswith("=$"): clause[x] = "/" + v[2:] + "$/"
 
-                    elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
-                        b = v[1:-1].split(";")
+                # Numeric
+                elif v.startswith("=="): clause[x] = str2num(v[2:])
+                elif v.startswith("<="): clause[x] = {"$lte": str2num(v[2:])}
+                elif v.startswith(">="): clause[x] = {"$gte": str2num(v[2:])}
+                elif v.startswith("<"): clause[x] = {"$lt": str2num(v[2:])}
+                elif v.startswith(">"): clause[x] = {"$gt": str2num(v[2:])}
 
-                        if v[0] == "[" and v[-1] == "]": clause[x] = {"$gte": float(b[0]), "$lte": float(b[1])}
-                        elif v[0] == "(" and v[-1] == ")": clause[x] = {"$gt": float(b[0]), "$lt": float(b[1])}
-                        elif v[0] == "(" and v[-1] == "]": clause[x] = {"$gt": float(b[0]), "$lte": float(b[1])}
-                        elif v[0] == "[" and v[-1] == ")": clause[x] = {"$gt": float(b[0]), "$lt": float(b[1])}
-                        else: clause[x] = v
+                elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
+                    b = v[1:-1].split(";")
 
-                    or_clauses.append(clause)
+                    if v[0] == "[" and v[-1] == "]": clause[x] = {"$gte": str2num(b[0]), "$lte": str2num(b[1])}
+                    elif v[0] == "(" and v[-1] == ")": clause[x] = {"$gt": str2num(b[0]), "$lt": str2num(b[1])}
+                    elif v[0] == "(" and v[-1] == "]": clause[x] = {"$gt": str2num(b[0]), "$lte": str2num(b[1])}
+                    elif v[0] == "[" and v[-1] == ")": clause[x] = {"$gt": str2num(b[0]), "$lt": str2num(b[1])}
+                    else: clause[x] = v
 
-                except:
-                    raise
+                or_clauses.append(clause)
 
             and_clauses.append({"$or": or_clauses})
 
@@ -179,7 +178,6 @@ class DataFilter:
         df = DataFilter()
         df.parsed_filter = parsed_filter
 
-        # TODO: Deparse filter (from JSON to some sort of function)
         if parsed_filter is None: return None
         if isinstance(parsed_filter, str): parsed_filter = json.loads(parsed_filter)
 
@@ -192,41 +190,35 @@ class DataFilter:
             filters = parsed_filter[field]
 
             for v in filters:
-                # if isinstance(v, str): v = v.replace(" ", "")
 
-                try:
-                    if not isinstance(v, str): fun = lambda x, f=v: x == f
+                if not isinstance(v, str): fun = lambda x, f=v: x == f
 
-                    # Strings
-                    elif v.startswith("!="): fun = lambda x, f=v: x != f[2:]
-                    elif v.startswith("=@"): fun = lambda x, f=v: f[2:] in x
-                    elif v.startswith("!@"): fun = lambda x, f=v: f[2:] not in x
-                    elif v.startswith("=^"): fun = lambda x, f=v: x.startswith(f[2:])
-                    elif v.startswith("=$"): fun = lambda x, f=v: x.endswith(f[2:])
+                # Strings
+                elif v.startswith("!="): fun = lambda x, f=v: x != f[2:]
+                elif v.startswith("=@"): fun = lambda x, f=v: f[2:] in x
+                elif v.startswith("!@"): fun = lambda x, f=v: f[2:] not in x
+                elif v.startswith("=^"): fun = lambda x, f=v: x.startswith(f[2:])
+                elif v.startswith("=$"): fun = lambda x, f=v: x.endswith(f[2:])
 
-                    # Numeric
-                    elif v.startswith("=="): fun = lambda x, f=v: x == float(f[2:])
-                    elif v.startswith("<="): fun = lambda x, f=v: x <= float(f[2:])
-                    elif v.startswith(">="): fun = lambda x, f=v: x >= float(f[2:])
-                    elif v.startswith("<"): fun = lambda x, f=v: x < float(f[1:])
-                    elif v.startswith(">"): fun = lambda x, f=v: x > float(f[1:])
+                # Numeric
+                elif v.startswith("=="): fun = lambda x, f=v: x == str2num(f[2:])
+                elif v.startswith("<="): fun = lambda x, f=v: x <= str2num(f[2:])
+                elif v.startswith(">="): fun = lambda x, f=v: x >= str2num(f[2:])
+                elif v.startswith("<"): fun = lambda x, f=v: x < str2num(f[1:])
+                elif v.startswith(">"): fun = lambda x, f=v: x > str2num(f[1:])
 
-                    # Between numbers
-                    elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
-                        between = tuple(v[1:-1].split(";"))
+                # Between numbers
+                elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
+                    between = tuple(v[1:-1].split(";"))
 
-                        if v[0] == "[" and v[-1] == "]": fun = lambda x, b=between: float(b[0]) <= x <= float(b[1])
-                        elif v[0] == "(" and v[-1] == ")": fun = lambda x, b=between: float(b[0]) < x < float(b[1])
-                        elif v[0] == "(" and v[-1] == "]": fun = lambda x, b=between: float(b[0]) < x <= float(b[1])
-                        elif v[0] == "[" and v[-1] == ")": fun = lambda x, b=between: float(b[0]) <= x < float(b[1])
-                        else: fun = lambda x, f=v: x == f
+                    if v[0] == "[" and v[-1] == "]": fun = lambda x, b=between: str2num(b[0]) <= x <= str2num(b[1])
+                    elif v[0] == "(" and v[-1] == ")": fun = lambda x, b=between: str2num(b[0]) < x < str2num(b[1])
+                    elif v[0] == "(" and v[-1] == "]": fun = lambda x, b=between: str2num(b[0]) < x <= str2num(b[1])
+                    elif v[0] == "[" and v[-1] == ")": fun = lambda x, b=between: str2num(b[0]) <= x < str2num(b[1])
+                    else: fun = lambda x, f=v: x == f
 
-                    # Other
-                    else:
-                        fun = lambda x, f=v: x == f
-                    df.filter[field].append(fun)
-
-                except:
-                    continue
-
+                # Other
+                else:
+                    fun = lambda x, f=v: x == f
+                df.filter[field].append(fun)
         return df

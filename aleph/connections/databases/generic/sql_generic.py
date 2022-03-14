@@ -3,32 +3,41 @@ from ....common.database_field_parse import *
 
 class SQLGenericDB:
 
-    def __init__(self):
-        self.dbs = "sqlite"  # sqlite, mariadb, mysql, postgres
+    def __init__(self, dbs):
+        self.dbs = dbs
         self.client = None
-        self.first_read = False
+        self.first_op = True
+
+        if dbs not in ["sqlite", "mariadb", "mysql", "postgres"]:
+            raise Exception("Invalid SQL engine: " + str(dbs))
 
     def create_metadata_table(self):
         # Create metadata table
         cur = self.client.cursor()
 
         if self.dbs == "sqlite":
-            sql = 'CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY AUTOINCREMENT, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
+            sql = 'CREATE TABLE IF NOT EXISTS metadata (id INTEGER PRIMARY KEY AUTOINCREMENT, ' \
+                  'key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), ' \
+                  'description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
         elif self.dbs == "mariadb" or self.dbs == "mysql":
-            sql = 'CREATE TABLE IF NOT EXISTS metadata (id INT NOT NULL AUTO_INCREMENT, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`))'
+            sql = 'CREATE TABLE IF NOT EXISTS metadata (id INT NOT NULL AUTO_INCREMENT, ' \
+                  'key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), ' \
+                  'description VARCHAR(1000) DEFAULT "", created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ' \
+                  'PRIMARY KEY (`id`))'
         elif self.dbs == "postgres":
-            sql = 'CREATE TABLE IF NOT EXISTS metadata (id BIGSERIAL PRIMARY KEY, key_name VARCHAR(255), field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), description VARCHAR(1000) DEFAULT \'\', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
+            sql = 'CREATE TABLE IF NOT EXISTS metadata (id BIGSERIAL PRIMARY KEY, key_name VARCHAR(255), ' \
+                  'field VARCHAR(255), field_id VARCHAR(255), alias VARCHAR(255), ' \
+                  'description VARCHAR(1000) DEFAULT \'\', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
 
         cur.execute(sql)
         sql = 'CREATE INDEX IF NOT EXISTS idx_key ON metadata (key_name)'
         cur.execute(sql)
         self.client.commit()
         cur.close()
+        self.first_op = False
 
     def read(self, key, **kwargs):
-        if self.first_read:
-            self.first_read = False
-            self.create_metadata_table()
+        if self.first_op: self.create_metadata_table()
 
         # Parse args and key
         args = kwargs
@@ -52,11 +61,8 @@ class SQLGenericDB:
 
         # Filter
         args_filter = args.pop("filter", None)
-        if args_filter is not None: where_clauses.append(args_filter.to_sql_where_clause())
+        if args_filter is not None: where_clauses.append(args_filter.to_sql_where_clause(db_parse_field))
         where_clauses.append("deleted_ IS NOT TRUE")
-
-        # Null filter (select only values that are not null)
-        # TODO
 
         # Collect all where clauses
         where_clause = " WHERE " + " AND ".join(where_clauses)
@@ -76,6 +82,7 @@ class SQLGenericDB:
 
         # Run query
         query = "SELECT " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
+        print(query)
         cur = self.client.cursor()
         cur.execute(query)
 
@@ -86,11 +93,16 @@ class SQLGenericDB:
         for record in data:
             dict_record = dict(zip(columns, record))
             if "t" in dict_record: dict_record["t"] = dict_record["t"].replace(" ", "T") + "Z"
-            result.append({f: dict_record[f] for f in dict_record if f not in ["id", "deleted_"]})
+            if "t_" in dict_record: dict_record["t_"] = dict_record["t_"].replace(" ", "T") + "Z"
+            r = {f: dict_record[f] for f in dict_record if f not in ["id", "deleted_"] and dict_record[f] is not None}
+            if len(r) == 0: continue
+            result.append(r)
 
         return result
 
     def write(self, key, data):
+        if self.first_op: self.create_metadata_table()
+
         org_key = key
         key = db_parse_key(key)
         cur = self.client.cursor()

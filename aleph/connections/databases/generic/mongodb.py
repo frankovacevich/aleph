@@ -6,7 +6,6 @@ import pymongo
 import datetime
 
 
-
 class MongoDBConnection(Connection):
 
     def __init__(self, client_id=""):
@@ -63,7 +62,7 @@ class MongoDBConnection(Connection):
         projection = {}
         if args["fields"] != "*":
             projection = {x: True for x in args["fields"]}
-            projection["t"] = True
+            # projection["t"] = True
         projection["_id"] = False
 
         # Get data from collection
@@ -78,10 +77,10 @@ class MongoDBConnection(Connection):
         else:
             found = found.sort([(args["order"], pymongo.ASCENDING)])
 
-        return list(map(self.__datetime_to_utc_string__, found))
+        return list(map(self.__on_read_map__, found))
 
-    def __datetime_to_utc_string__(self, record):
-        record["t"] = record["t"].strftime("%Y-%m-%dT%H:%M:%SZ")
+    def __on_read_map__(self, record):
+        if "t" in record:  record["t"]  = record["t"].strftime("%Y-%m-%dT%H:%M:%SZ")
         if "t_" in record: record["t_"] = record["t_"].strftime("%Y-%m-%dT%H:%M:%SZ")
         return {db_deparse_field(f): record[f] for f in record}
 
@@ -92,8 +91,7 @@ class MongoDBConnection(Connection):
         for record in data:
 
             # Correct time
-            if "t" not in record: record["t_"] = now()
-            else: record["t_"] = datetime.datetime.strptime(record.pop("t"), "%Y-%m-%dT%H:%M:%SZ")
+            record["t_"] = datetime.datetime.strptime(record.pop("t"), "%Y-%m-%dT%H:%M:%SZ")
 
             # Parse fields
             set_record = {db_parse_field(f): record[f] for f in record}

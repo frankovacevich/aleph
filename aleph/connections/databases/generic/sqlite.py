@@ -3,23 +3,30 @@ from .sql_generic import SQLGenericDB
 import sqlite3
 
 
-class SqliteConnection(Connection, SQLGenericDB):
+class SqliteConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
         self.file = "./main.db"
 
         # Private
-        self.check_filters_on_read = False
-        self.check_timestamp_on_read = False
-
-        self.client = None
-        self.dbs = "sqlite"
+        self.clean_on_read = False
+        self.sql_generic = SQLGenericDB("sqlite")
 
     def open(self):
-        self.client = sqlite3.connect(self.file)
-        super().open()
+        self.sql_generic.client = sqlite3.connect(self.file)
+        self.sql_generic.client.close()
 
     def close(self):
-        self.client.close()
-        super().close()
+        return
+
+    def read(self, key, **kwargs):
+        self.sql_generic.client = sqlite3.connect(self.file)
+        data = self.sql_generic.read(key, **kwargs)
+        self.sql_generic.client.close()
+        return data
+
+    def write(self, key, data):
+        self.sql_generic.client = sqlite3.connect(self.file)
+        self.sql_generic.write(key, data)
+        self.sql_generic.client.close()

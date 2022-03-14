@@ -15,8 +15,11 @@ class MqttNamespaceConnection(Connection):
         self.password = ""
         self.broker_address = "localhost"
         self.port = 1883
+
         self.tls_enabled = False
-        self.certificates_folder = ""
+        self.ca_cert = ""
+        self.client_cert = ""
+        self.client_key = ""
 
         self.birth_key = None
         self.birth_message = None
@@ -25,8 +28,7 @@ class MqttNamespaceConnection(Connection):
 
         self.read_timeout = 10
         self.store_and_forward = True
-        self.check_timestamp_on_read = False
-        self.check_filters_on_read = False
+        self.clean_on_read = False
 
         # Aux
         self.mqtt_conn = None
@@ -45,7 +47,9 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.broker_address = self.broker_address
         self.mqtt_conn.port = self.port
         self.mqtt_conn.tls_enabled = self.tls_enabled
-        self.mqtt_conn.certificates_folder = self.certificates_folder
+        self.mqtt_conn.ca_cert = self.ca_cert
+        self.mqtt_conn.client_cert = self.client_cert
+        self.mqtt_conn.client_key = self.client_key
 
         self.mqtt_conn.birth_message = self.data_to_mqtt_message(self.birth_message)
         self.mqtt_conn.birth_topic = self.key_to_topic(self.birth_key)
@@ -143,7 +147,7 @@ class MqttNamespaceConnection(Connection):
             self.on_new_data(key, clean_data)
 
         except Exception as e:
-            self.on_read_error(key, Error(e, client_id=self.client_id))
+            self.on_read_error(Error(e, client_id=self.client_id))
 
     def __on_new_read_request__(self, topic, message):
         return

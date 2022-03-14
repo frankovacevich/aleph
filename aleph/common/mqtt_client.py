@@ -14,7 +14,9 @@ class MqttClient:
         self.broker_address = "localhost"
         self.port = 1883
         self.qos = 1
-        self.certificates_folder = ""
+        self.ca_cert = ""
+        self.client_cert = ""
+        self.client_key = ""
         self.tls_enabled = False
         self.username = ""
         self.password = ""
@@ -90,11 +92,7 @@ class MqttClient:
         self.mqtt_client.on_message = self.__on_new_message__
 
         if self.tls_enabled:
-            self.mqtt_client.tls_set(
-                ca_certs=os.path.join(self.certificates_folder, "ca.crt"),
-                certfile=os.path.join(self.certificates_folder, "client.crt"),
-                keyfile=os.path.join(self.certificates_folder, "client.key")
-            )
+            self.mqtt_client.tls_set(ca_certs=self.ca_cert, certfile=self.client_cert, keyfile=self.client_key)
 
         if self.last_will_topic is not None and self.last_will_message is not None:
             self.mqtt_client.will_set(
