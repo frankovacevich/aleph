@@ -1,7 +1,4 @@
 import paho.mqtt.client as mqtt
-import paho.mqtt.subscribe as subs
-import os
-import json
 import time
 from ..common.exceptions import *
 
@@ -111,7 +108,7 @@ class MqttClient:
             time.sleep(0.1)
             self.mqtt_client.loop()
             if 0 < timeout < time.time() - t0:
-                raise Exceptions.OpenTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
+                raise Exceptions.ConnectionOpeningTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
 
     def disconnect(self):
         self.mqtt_client.disconnect()

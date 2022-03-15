@@ -1,6 +1,5 @@
 from ....common.database_field_parse import *
 from ...connection import Connection
-from ....common.datetime_functions import now
 import urllib.parse
 import pymongo
 import datetime

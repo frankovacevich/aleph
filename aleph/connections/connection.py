@@ -1,7 +1,7 @@
 from ..common.exceptions import *
 from ..common.datetime_functions import *
-from ..common.wait_one_step import WaitOneStep
 from ..common.dict_functions import *
+from ..common.wait_one_step import WaitOneStep
 from ..common.local_storage import LocalStorage
 from ..common.data_filter import DataFilter
 import threading
@@ -17,7 +17,7 @@ class Connection:
         self.local_storage = LocalStorage()       # Local storage instance
 
         # Optional parameters: reading
-        self.default_subscribe_time_step = 10     # Default time step for continuous reading
+        self.default_time_step = 10               # Default time step for loops
         self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
         self.clean_on_read = True                 # Check since, until, fields, filter, limit, offset and order
         self.report_by_exception = False          # When reading data, only returns changing values
@@ -28,8 +28,8 @@ class Connection:
         self.clean_on_write = True                # Clean data when writing (adds time)
 
         # Internal
-        self.__connected__ = False
-        self.__unsubscribe_flags__ = {}
+        self.__unsubscribe_flags__ = {}           # Used to implement unsubscribe
+        self.__auto_reconnect_flag__ = False      #
 
     # ===================================================================================
     # Main functions (override me)
@@ -49,7 +49,7 @@ class Connection:
     def read(self, key, **kwargs):
         """
         Must return a list (data, a list of records) or a dict (single record)
-        The **kwargs are optional read arguments (can be read as a dict)
+        The **kwargs are optional read arguments
         Use clean_read_args to clean the **kwargs
         """
         return []
@@ -60,11 +60,11 @@ class Connection:
         """
         return
 
-    def connected(self):
+    def is_connected(self):
         """
-        Returns a boolean (True if connected, False if not connected)
+        Returns a boolean (True if open, False if not open)
         """
-        return self.__connected__
+        return True
 
     # ===================================================================================
     # Callbacks
@@ -97,45 +97,30 @@ class Connection:
 
     def on_connect(self):
         """
-        Callback function called after open(). If overridden, use super().on_connect()
+        Callback function for when the connection is open
         """
-        self.__connected__ = True
-        if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+        # Flush store and forward buffer
+        if self.store_and_forward:
+            self.__store_and_forward_flush_buffer__()
 
         # If not persistent wipe out last times
-        if not self.persistent: self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
-        return
+        if not self.persistent:
+            self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
 
     def on_disconnect(self):
         """
-        Callback function called after close(). If overridden, use super().on_disconnect()
+        Callback function for when the connection is closed
         """
-        self.__connected__ = False
         return
 
     # ===================================================================================
-    # Safe functions
+    # Read and write safe functions
     # ===================================================================================
 
-    def safe_open(self):
-        try:
-            if not self.connected():
-                self.open()
-                self.on_connect()
-        except:
-            self.on_open_error(Error(Exceptions.OpenError(), client_id=self.client_id))
-
     def safe_read(self, key, **kwargs):
-        """
-        Executes the read function safely, checking for models and report by exception.
-        If new data is available, the on_new_data method is executed.
-        If there is an error, the on_read_error method is executed
-        """
-        self.safe_open()
-
         try:
-            # Open connection
-            if not self.connected(): self.open()
+            # Check if connection is open
+            if not self.is_connected(): self.open()
 
             # Clean arguments and read data
             args = self.__clean_read_args__(key, **kwargs)
@@ -146,15 +131,15 @@ class Connection:
             # Store last time read
             if args["until"] is None:
                 last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-                last_times[key] = time.time()
+                last_times[key] = now(unixts=True)
                 self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
             return data
 
-        except:
-            self.on_read_error(Error(Exceptions.ReadError(), client_id=self.client_id, key=key, kw_args=kwargs))
+        except Exception as e:
+            self.on_read_error(Error(e, client_id=self.client_id, key=key, kw_args=kwargs))
             return []
 
     def safe_write(self, key, data):
@@ -165,33 +150,72 @@ class Connection:
         # Clean data
         try:
             data = self.__clean_write_data__(key, data)
-        except:
-            self.on_write_error(Error(Exceptions.WriteError(), client_id=self.client_id, key=key, data=data))
+        except Exception as e:
+            self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return False
 
         # Write data
         try:
-            if not self.connected(): self.open()
+            if not self.is_connected(): self.open()
             self.write(key, data)
             if self.store_and_forward: self.__store_and_forward_flush_buffer__()
             return True
-        except:
+        except Exception as e:
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
-            self.on_write_error(Error(Exceptions.WriteError(), client_id=self.client_id, key=key, data=data))
+            self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return False
 
     # ===================================================================================
-    # Async functions
+    # Opening
     # ===================================================================================
-    def subscribe(self, key, time_step=1):
+
+    def open_async(self, time_step=None):
+        """
+        Executes the open function without blocking the main thread
+        Calls is_connected on a loop and tries to reconnect if disconnected
+        """
+        if time_step is None: time_step = self.default_time_step
+        open_thread = threading.Thread(target=self.__open_async_aux__,
+                                       name="Open async",
+                                       args=(time_step,),
+                                       daemon=True)
+        open_thread.start()
+
+    def __open_async_aux__(self, time_step):
+        w = WaitOneStep(time_step)
+        t = w.step(0)
+
+        s_prev = False
+        while True:
+            t = w.step(t)
+
+            # Check status and try to reopen
+            s = self.is_connected()
+            if not s:
+                try:
+                    self.open()
+                    s = True
+                except:
+                    s = False
+
+            # Callbacks
+            if s and not s_prev: self.on_connect()
+            if not s and s_prev: self.on_disconnect()
+            s_prev = s
+
+    # ===================================================================================
+    # More reading functions
+    # ===================================================================================
+
+    def subscribe(self, key, time_step=None):
         """
         Executes the safe_read function in a loop. This method blocks the main thread.
-        Implementation may change for each connection
         """
-        if time_step is None: time_step = self.default_subscribe_time_step
+        if time_step is None: time_step = self.default_time_step
         self.__unsubscribe_flags__[key] = True
         w = WaitOneStep(time_step)
         t = w.step(0)
+
         while True:
             # Break loop if unsubscribed
             if not self.__unsubscribe_flags__[key]: break
@@ -203,31 +227,31 @@ class Connection:
             # Callback
             self.on_new_data(key, data)
 
-    def __read_async_aux__(self, key, **kwargs):
-        data = self.safe_read(key, **kwargs)
-        self.on_new_data(key, data)
-
-    def open_async(self):
-        """
-        Executes the open function without blocking the main thread
-        """
-        open_thread = threading.Thread(target=self.safe_open, name="Open async")
-        open_thread.start()
-
     def read_async(self, key, **kwargs):
         """
         Executes the safe_read function without blocking the main thread.
         """
-        read_thread = threading.Thread(target=self.__read_async_aux__, name="Read async", args=(key,), kwargs=kwargs)
+        read_thread = threading.Thread(target=self.__read_async_aux__,
+                                       name="Read async " + key,
+                                       args=(key,),
+                                       kwargs=kwargs,
+                                       daemon=True)
         read_thread.start()
+
+    def __read_async_aux__(self, key, **kwargs):
+        data = self.safe_read(key, **kwargs)
+        self.on_new_data(key, data)
 
     def subscribe_async(self, key, time_step=None):
         """
         Executes the subscribe function without blocking the main thread.
         """
-        if time_step is None: time_step = self.default_subscribe_time_step
+        if time_step is None: time_step = self.default_time_step
         if key in self.__unsubscribe_flags__: return
-        subscribe_thread = threading.Thread(target=self.subscribe, name="Subscribe async", args=(key, time_step,))
+        subscribe_thread = threading.Thread(target=self.subscribe,
+                                            name="Subscribe async",
+                                            args=(key, time_step,),
+                                            daemon=True)
         subscribe_thread.start()
 
     def unsubscribe(self, key):

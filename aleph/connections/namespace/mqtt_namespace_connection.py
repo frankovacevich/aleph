@@ -27,18 +27,20 @@ class MqttNamespaceConnection(Connection):
         self.last_will_message = None
 
         self.read_timeout = 10
+
+        # Connection properties
         self.store_and_forward = True
         self.clean_on_read = False
 
         # Aux
         self.mqtt_conn = None
-        self.sync_read_topic = None
-        self.sync_read_data = None
+        self.__read_request_topic__ = None
+        self.__read_request_data__ = None
 
     # ===================================================================================
     # Main functions
     # ===================================================================================
-    def open(self):
+    def create_client(self):
         if self.mqtt_conn is not None: return
 
         self.mqtt_conn = MqttClient(self.client_id)
@@ -61,61 +63,67 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.on_connect = self.on_connect
         self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
 
+    def open(self):
+        self.create_client()
+        # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
 
     def close(self):
         self.mqtt_conn.disconnect()
 
-    def connected(self):
+    def is_connected(self):
         if self.mqtt_conn is None: return False
-        return self.mqtt_conn.connected
+        return self.mqtt_conn.is_connected
 
     def write(self, key, data):
         topic = self.key_to_topic(key, "w")
         message = self.data_to_mqtt_message(data)
 
         r = self.mqtt_conn.publish(topic, message)
-        if r == 1: raise Exceptions.WriteError("Connection refused, unacceptable protocol version")
-        elif r == 2: raise Exceptions.WriteError("Connection refused, identifier rejected")
-        elif r == 3: raise Exceptions.WriteError("Connection refused, server unavailable")
-        elif r == 4: raise Exceptions.WriteError("Connection refused, bad username or password")
-        elif r == 5: raise Exceptions.WriteError("Connection refused, not authorized")
+        if r == 1: raise Exception("Connection refused, unacceptable protocol version (r = 1)")
+        elif r == 2: raise Exception("Connection refused, identifier rejected (r = 2)")
+        elif r == 3: raise Exception("Connection refused, server unavailable (r = 3)")
+        elif r == 4: raise Exception("Connection refused, bad username or password (r = 4)")
+        elif r == 5: raise Exception("Connection refused, not authorized (r = 5)")
+        elif r > 0: raise Exception("Mqtt error (r = " + str(r) + ")")
         return
 
     def read(self, key, **kwargs):
         # Generate read request
-        response_code = self.__generate_read_request__(key, **kwargs)
+        self.__generate_read_request__(key, **kwargs)
 
         # Wait for response
         t = time.time()
-        while self.sync_read_data is None:
+        while self.__read_request_data__ is None:
             if time.time() - t > self.read_timeout:
-                self.sync_read_data = None
-                raise Exceptions.ReadTimeout()
+                self.__read_request_data__ = None
+                raise Exceptions.ConnectionReadingTimeout()
 
         # Return response
-        response = self.sync_read_data
-        self.sync_read_data = None
+        response = self.__read_request_data__
+        self.__read_request_data__ = None
         return response
+
+    # ===================================================================================
+    # Opening async (same as open)
+    # ===================================================================================
+    def open_async(self, time_step=None):
+        self.open()
 
     # ===================================================================================
     # Subscribe and read async (error handling is done on __on_new_mqtt_message__)
     # ===================================================================================
     def subscribe(self, key, time_step=None):
-        if not self.connected(): self.open()
-
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
-        while topic in self.mqtt_conn.subscribe_topics: pass
+        while topic in self.mqtt_conn.subscribe_topics: pass  # Block thread
 
     def read_async(self, key, **kwargs):
-        if not self.connected(): self.open()
         response_code = self.__generate_read_request__(key, **kwargs)
         response_topic = self.key_to_topic(key, response_code)
         self.mqtt_conn.subscribe_single(response_topic)
 
     def subscribe_async(self, key, time_step=None):
-        if not self.connected(): self.open()
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
 
@@ -126,31 +134,23 @@ class MqttNamespaceConnection(Connection):
     # Private
     # ===================================================================================
     def __on_new_mqtt_message__(self, topic, message):
-        key = topic
+        self.__process_mqtt_message__(topic, message)
 
-        # Read request
-        if topic.startswith("alv1/r/"):
-            self.__on_new_read_request__(topic, message)
-            return
-
+    def __process_mqtt_message__(self, topic, message):
         try:
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
             data = self.mqtt_message_to_data(message)
+
             # Response to read request
-            if topic == self.sync_read_topic: self.sync_read_data = data
-            # Get new data
-            args = self.__clean_read_args__(key)
-            clean_data = self.__clean_read_data__(key, data, **args)
-            if len(clean_data) == 0: return
+            if topic == self.__read_request_topic__: self.__read_request_data__ = data
+
             # Callback
-            self.on_new_data(key, clean_data)
+            if len(data) == 0: return
+            self.on_new_data(key, data)
 
         except Exception as e:
             self.on_read_error(Error(e, client_id=self.client_id))
-
-    def __on_new_read_request__(self, topic, message):
-        return
 
     def __generate_read_request__(self, key, **kwargs):
         # Create request message
@@ -165,8 +165,8 @@ class MqttNamespaceConnection(Connection):
         message = self.data_to_mqtt_message(request)
 
         # Subscribe to response
-        self.sync_read_topic = self.key_to_topic(key, request["response_code"])
-        self.mqtt_conn.subscribe_single(self.sync_read_topic)
+        self.__read_request_topic__ = self.key_to_topic(key, request["response_code"])
+        self.mqtt_conn.subscribe_single(self.__read_request_topic__)
 
         # Publish request
         self.mqtt_conn.publish(topic, message)
@@ -174,9 +174,7 @@ class MqttNamespaceConnection(Connection):
         # Return response topic
         return request["response_code"]
 
-    def __subscribe_to_read_requests__(self, key):
-        topic = self.key_to_topic(key, "r")
-        self.mqtt_conn.subscribe(topic)
+
 
     # ===================================================================================
     # Aux
@@ -185,8 +183,8 @@ class MqttNamespaceConnection(Connection):
     def topic_to_key(topic):
         topic = str(topic)
         if topic.startswith("alv1") and len(topic) > 7:
-            sindex = topic.index("/", 5) + 1
-            topic = topic[sindex:]
+            s_index = topic.index("/", 5) + 1
+            topic = topic[s_index:]
         return topic.replace("/", ".")
 
     @staticmethod

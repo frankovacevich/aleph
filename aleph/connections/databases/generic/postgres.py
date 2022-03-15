@@ -1,4 +1,5 @@
 from ...connection import Connection
+from .sql_generic import SQLGenericDB
 import psycopg2
 
 
@@ -13,21 +14,22 @@ class PostgresConnection(Connection):
         self.database = "main"
 
         # Private
-        self.check_filters_on_read = False
-        self.check_timestamp_on_read = False
-
-        self.client = None
-        self.dbs = "postgres"
+        self.clean_on_read = False
+        self.sql_generic = SQLGenericDB("mysql")
 
     def open(self):
-        self.client = psycopg2.connect(database=self.database,
-                                       user=self.username,
-                                       password=self.password,
-                                       host=self.server,
-                                       port=self.port
-                                       )
-        super().open()
+        self.sql_generic.client = psycopg2.connect(database=self.database,
+                                                   user=self.username,
+                                                   password=self.password,
+                                                   host=self.server,
+                                                   port=self.port
+                                                   )
 
     def close(self):
-        self.client.close()
-        super().close()
+        self.sql_generic.client.close()
+
+    def read(self, key, **kwargs):
+        return self.sql_generic.read(key, **kwargs)
+
+    def write(self, key, data):
+        self.sql_generic.write(key, data)

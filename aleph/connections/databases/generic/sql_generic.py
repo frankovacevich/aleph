@@ -1,3 +1,4 @@
+import math
 from ....common.database_field_parse import *
 
 
@@ -183,7 +184,7 @@ class SQLGenericDB:
             if isinstance(v, str): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BOOL;'
             elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' INT;'
-            elif isinstance(v, float): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' FLOAT(32);'
+            elif isinstance(v, float): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' DOUBLE PRECISION;'
 
         # Execute update table query
         if query_update_table != '':
@@ -223,3 +224,9 @@ class SQLGenericDB:
     def __sql_bool__(self, v):
         if self.dbs == "postgres": return "TRUE" if v else "FALSE"
         return "1" if v else "0"
+
+    def __check_value__(self, v):
+        if isinstance(v, str) and len(v) > 255: return False
+        elif isinstance(v, int) and (v < -2147483648 or v > 2147483647): return False
+        elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)): return False
+        return True

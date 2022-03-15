@@ -26,6 +26,10 @@ class SiemensS7Connection(Connection):
         self.connection = None
         super().close()
 
+    def is_connected(self):
+        if self.connection is None: return False
+        return self.connection.get_connected()
+
     def read(self, key, **kwargs):
         """
         Implement this function yourself.
