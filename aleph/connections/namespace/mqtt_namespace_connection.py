@@ -73,7 +73,7 @@ class MqttNamespaceConnection(Connection):
 
     def is_connected(self):
         if self.mqtt_conn is None: return False
-        return self.mqtt_conn.is_connected
+        return self.mqtt_conn.connected
 
     def write(self, key, data):
         topic = self.key_to_topic(key, "w")
@@ -134,9 +134,6 @@ class MqttNamespaceConnection(Connection):
     # Private
     # ===================================================================================
     def __on_new_mqtt_message__(self, topic, message):
-        self.__process_mqtt_message__(topic, message)
-
-    def __process_mqtt_message__(self, topic, message):
         try:
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
@@ -189,7 +186,7 @@ class MqttNamespaceConnection(Connection):
 
     @staticmethod
     def key_to_topic(key, mode="w"):
-        topic = "alv1/" + str(mode) + "/" + str(key).replace("/", ".")
+        topic = "alv1/" + str(mode) + "/" + str(key).replace(".", "/")
         return topic
 
     @staticmethod

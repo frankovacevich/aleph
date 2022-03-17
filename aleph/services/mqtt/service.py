@@ -15,7 +15,7 @@ class MqttService(Service):
             self.read_request_keys,
             self.on_read_request,
             self.on_read_request_error
-        )
+        ).start()
 
 
 # ===================================================================================
@@ -31,14 +31,14 @@ class MqttGatewayService(GatewayService):
             self.local_root_key,
             self.on_read_request,
             self.on_read_request_error
-        )
+        ).start()
 
         self.remote_server = MqttReadRequestsServer(
             self.remote_namespace_connection,
             self.remote_root_key,
             self.on_read_request,
             self.on_read_request_error
-        )
+        ).start()
 
 
 # ===================================================================================
@@ -53,10 +53,12 @@ class MqttReadRequestsServer:
         self.on_read_request_error = on_read_request_error
 
     def start(self):
-        self.conn.__on_new_mqtt_message__ = self.__on_new_mqtt_message__
+        self.conn.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
         for key in self.keys:
             topic = self.conn.key_to_topic(key, "r")
             self.conn.mqtt_conn.subscribe(topic)
+
+        return self
 
     def __on_new_mqtt_message__(self, topic, message):
         if topic.startswith("alv1/r/"):
@@ -77,5 +79,5 @@ class MqttReadRequestsServer:
                 self.on_read_request_error(Error(e))
 
         else:
-            self.conn.__process_mqtt_message__(topic, message)
+            self.conn.__on_new_mqtt_message__(topic, message)
 

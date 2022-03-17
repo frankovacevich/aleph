@@ -15,7 +15,7 @@ def now(string=False, unixts=False):
     """
     t = datetime.datetime.today().replace(tzinfo=tzlocal()).astimezone(tzutc())
     if string: return t.strftime("%Y-%m-%dT%H:%M:%SZ")
-    elif unixts: return float(round(time.time()))
+    elif unixts: return float(int(time.time()))
     else: return t
 
 

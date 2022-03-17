@@ -1,64 +1,71 @@
-"""
-See https://github.com/ruscito/pycomm
-"""
-
 from ..connection import Connection
-from ...common.exceptions import *
+import pycomm3
 
 
 class AllenBradleyConnection(Connection):
 
-    def __init__(self):
-        super().__init__("")
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
         self.ip_address = ""
-        self.model = "Micrologix"  # "Compactlogix", "Controllogix", "Micrologix", "SLC"
-        self.connection = None
+        self.model = "MicroLogix"  # ControlLogix, CompactLogix, Micro800, SLC500, MicroLogix
+        self.plc = None
 
     def open(self):
-        if self.model == "Compactlogix" or self.model == "Controllogix":
-            from pycomm.ab_comm.clx import Driver
-        elif self.model == "Micrologix" or self.model == "SLC":
-            from pycomm.ab_comm.slc import Driver
+        if self.model in ["ControlLogix", "CompactLogix", "Micro800"]:
+            plc = pycomm3.LogixDriver(self.ip_address)
+        elif self.model in ["SLC500", "MicroLogix"]:
+            plc = pycomm3.SLCDriver(self.ip_address)
         else:
-            raise ConnectionOpenException("Invalid PLC model: " + str(self.model))
+            raise Exception("Invalid PLC Model: '" + str(self.model) + "'. Valid models are 'ControlLogix', "
+                            "'CompactLogix', 'Micro800', 'SLC500' and 'MicroLogix'")
 
-        self.connection = Driver()
-        self.connection.open(self.ip_address)
-        super().open()
+        self.plc = plc
+        self.plc.open()
 
     def close(self):
-        self.connection.close()
-        super().close()
+        if self.plc is None: return
+        self.plc.close()
+        self.plc = None
+
+    def is_connected(self):
+        if self.plc is None: return False
+        return self.plc.connected
 
     def read(self, key, **kwargs):
         """
         Implement this function yourself.
-        Use the pycomm connection object. For example:
+        Use the pycomm3 connection object. For example:
+
+        self.plc.read('F8:0')
+
+        See https://github.com/ottowayi/pycomm3
+        """
+        tag = key
+
+        # tag = X:I{L}
+        if "{" not in tag: tag = tag + "{1}"
+        tag_ = tag.split(":")
+        X = tag_[0]
+        tag_ = tag_[1].replace("}", "").split("{")
+        I = int(tag_[0])
+        L = int(tag_[1])
+
+        values = self.plc.read(tag).value
+        if not isinstance(values, list): values = [values]
 
         result = {}
-        tag = conn.read_tag("F52:0", 3)
-        result["F52_0"] = tag[0]
-        result["F52_1"] = tag[1]
-        result["F52_2"] = tag[2]
-        ...
+        for i in range(0, len(values)):
+            result[X + ":" + str(I + i)] = values[i]
 
-        Use the int2bits helper function for boolean values:
-
-        from aleph.common.inttobits import int2bits
-        tag = conn.read_tag("B59:0", 3)
-        tag_ = int2bits(tag[0])
-        result["B59_0_0"] = tag_[0]
-        result["B59_0_1"] = tag_[1]
-        result["B59_0_2"] = tag_[2]
-        ...
-        """
-        return []
+        return result
 
     def write(self, key, data):
         """
         Implement this function yourself.
-        Use the pycomm connection object. For example:
+        Use the pycomm3 connection object. For example:
 
-        conn.write_tag('F8:0', 21)
+        self.plc.write('F8:0', 21)
+
+        See https://github.com/ottowayi/pycomm3
         """
         return

@@ -29,6 +29,10 @@ class ZKTecoConnection(Connection):
         self.conn = None
         super().close()
 
+    def is_connected(self):
+        if self.conn is None: return False
+        return self.conn.is_connect
+
     # ===================================================================================
     # Read
     # ===================================================================================

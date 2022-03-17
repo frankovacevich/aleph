@@ -12,6 +12,7 @@ class Service:
 
     def __init__(self, service_id):
         self.service_id = service_id
+        self.status = None
 
     # ===================================================================================
     # Main events (override me)
@@ -31,6 +32,7 @@ class Service:
     # ===================================================================================
     # Error handling (override me)
     # ===================================================================================
+
     def on_status_change(self, status_code):
         """
         0: both connection and namespace_connection are connected
@@ -64,13 +66,18 @@ class Service:
     # ===================================================================================
     # Private
     # ===================================================================================
+
     def __on_status_change__(self):
         status_0 = self.namespace_connection.is_connected()
         status_1 = self.connection.is_connected()
-        if status_0 and status_1: self.on_status_change(0)
-        elif status_0 and not status_1: self.on_status_change(0)
-        elif not status_0 and status_1: self.on_status_change(0)
-        else: self.on_status_change(3)
+
+        s = None
+        if status_0 and status_1: s = 0
+        elif status_0 and not status_1: s = 1
+        elif not status_0 and status_1: s = 2
+        else: s = 3
+        if s != self.status: self.on_status_change(s)
+        self.status = s
         return
 
     # ===================================================================================
@@ -99,8 +106,11 @@ class Service:
         self.connection.open_async()
 
         # Subscribe to keys
-        for key in self.namespace_subs_keys: self.namespace_connection.subscribe_async(key)
-        for key in self.connection_subs_keys: self.connection.subscribe_async(key)
+        for key in self.namespace_subs_keys:
+            self.namespace_connection.subscribe_async(key)
+
+        for key in self.connection_subs_keys:
+            self.connection.subscribe_async(key)
 
         # Custom setup
         self.setup()

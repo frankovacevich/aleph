@@ -316,9 +316,7 @@ class Connection:
         if "cleaned" in kwargs and kwargs["cleaned"]: return kwargs
 
         # Get and set last read time
-        last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = parse_datetime(last_times.pop(key, now(unixts=True)))
-        last_times[key] = now(unixts=True)
+        last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {key: now(unixts=True)})[key]
 
         # Preset args
         args = {

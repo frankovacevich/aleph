@@ -19,12 +19,11 @@ class SiemensS7Connection(Connection):
     def open(self):
         self.connection = snap7.client.Client()
         self.connection.connect(self.ip_address, rack=self.rack, slot=self.slot, tcpport=self.port)
-        super().open()
 
     def close(self):
+        if self.connection is None: return
         self.connection.disconnect()
         self.connection = None
-        super().close()
 
     def is_connected(self):
         if self.connection is None: return False
