@@ -1,3 +1,5 @@
+import time
+
 
 class Service:
 
@@ -10,7 +12,7 @@ class Service:
     namespace_connection = None
     connection = None
 
-    def __init__(self, service_id):
+    def __init__(self, service_id=""):
         self.service_id = service_id
         self.status = None
 
@@ -104,6 +106,7 @@ class Service:
         # Open connections
         self.namespace_connection.open_async()
         self.connection.open_async()
+        time.sleep(5)  # Give it some time for connections to open
 
         # Subscribe to keys
         for key in self.namespace_subs_keys:
