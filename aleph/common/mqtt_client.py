@@ -100,15 +100,23 @@ class MqttClient:
 
     def connect(self, timeout=0):
         if self.connecting: return
-        self.connecting = True
-        self.__setup__()
-        t0 = time.time()
-        while not self.connected:
-            self.mqtt_client.connect(self.broker_address, self.port, keepalive=self.keepalive)
-            time.sleep(0.1)
-            self.mqtt_client.loop()
-            if 0 < timeout < time.time() - t0:
-                raise Exceptions.ConnectionOpeningTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
+
+        try:
+            self.connecting = True
+            self.__setup__()
+            t0 = time.time()
+
+            while not self.connected:
+                self.mqtt_client.connect(self.broker_address, self.port, keepalive=self.keepalive)
+                time.sleep(0.1)
+                self.mqtt_client.loop()
+                if 0 < timeout < time.time() - t0:
+                    self.connecting = False
+                    raise Exceptions.ConnectionOpeningTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
+
+        except Exception:
+            self.connecting = False
+            raise
 
     def disconnect(self):
         self.mqtt_client.disconnect()
@@ -123,8 +131,9 @@ class MqttClient:
     # Publish
     # ===================================================================================
     def publish(self, topic, payload, qos=None):
-        r = self.mqtt_client.publish(topic, payload, qos if qos is not None else self.qos)
-        return r
+        print("PUBLISHING TO ", topic)
+        msg_info = self.mqtt_client.publish(topic, payload, qos if qos is not None else self.qos)
+        return msg_info
 
     # ===================================================================================
     # Loop

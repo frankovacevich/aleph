@@ -53,22 +53,26 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.client_cert = self.client_cert
         self.mqtt_conn.client_key = self.client_key
 
-        self.mqtt_conn.birth_message = self.data_to_mqtt_message(self.birth_message)
-        self.mqtt_conn.birth_topic = self.key_to_topic(self.birth_key)
-        self.mqtt_conn.last_will_message = self.data_to_mqtt_message(self.last_will_message)
-        self.mqtt_conn.last_will_topic = self.key_to_topic(self.last_will_key)
-
         self.mqtt_conn.persistent = self.persistent
         self.mqtt_conn.on_disconnect = self.on_disconnect
         self.mqtt_conn.on_connect = self.on_connect
         self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
 
+        if self.birth_key is not None and self.birth_message is not None:
+            self.mqtt_conn.birth_message = self.data_to_mqtt_message(self.birth_message)
+            self.mqtt_conn.birth_topic = self.key_to_topic(self.birth_key)
+        if self.last_will_key is not None and self.last_will_message is not None:
+            self.mqtt_conn.last_will_message = self.data_to_mqtt_message(self.last_will_message)
+            self.mqtt_conn.last_will_topic = self.key_to_topic(self.last_will_key)
+
     def open(self):
         self.create_client()
+        self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
 
     def close(self):
+        if self.mqtt_conn is None: return
         self.mqtt_conn.disconnect()
 
     def is_connected(self):
@@ -79,13 +83,13 @@ class MqttNamespaceConnection(Connection):
         topic = self.key_to_topic(key, "w")
         message = self.data_to_mqtt_message(data)
 
-        r = self.mqtt_conn.publish(topic, message)
-        if r == 1: raise Exception("Connection refused, unacceptable protocol version (r = 1)")
-        elif r == 2: raise Exception("Connection refused, identifier rejected (r = 2)")
-        elif r == 3: raise Exception("Connection refused, server unavailable (r = 3)")
-        elif r == 4: raise Exception("Connection refused, bad username or password (r = 4)")
-        elif r == 5: raise Exception("Connection refused, not authorized (r = 5)")
-        elif r > 0: raise Exception("Mqtt error (r = " + str(r) + ")")
+        msg_info = self.mqtt_conn.publish(topic, message)
+        if msg_info.rc == 1: raise Exception("Connection refused, unacceptable protocol version (r = 1)")
+        elif msg_info.rc == 2: raise Exception("Connection refused, identifier rejected (r = 2)")
+        elif msg_info.rc == 3: raise Exception("Connection refused, server unavailable (r = 3)")
+        elif msg_info.rc == 4: raise Exception("Connection refused, bad username or password (r = 4)")
+        elif msg_info.rc == 5: raise Exception("Connection refused, not authorized (r = 5)")
+        elif msg_info.rc > 0: raise Exception("Mqtt error (r = " + str(msg_info.rc) + ")")
         return
 
     def read(self, key, **kwargs):
@@ -108,7 +112,8 @@ class MqttNamespaceConnection(Connection):
     # Opening async (same as open)
     # ===================================================================================
     def open_async(self, time_step=None):
-        self.open()
+        self.create_client()
+        self.mqtt_conn.loop_async()
 
     # ===================================================================================
     # Subscribe and read async (error handling is done on __on_new_mqtt_message__)
@@ -170,8 +175,6 @@ class MqttNamespaceConnection(Connection):
 
         # Return response topic
         return request["response_code"]
-
-
 
     # ===================================================================================
     # Aux
