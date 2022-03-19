@@ -12,7 +12,6 @@ class Connection:
 
     def __init__(self, client_id=""):
 
-        # Optional parameters
         self.client_id = client_id                # Assign the connection a client id (required if persistent = True)
         self.local_storage = LocalStorage()       # Local storage instance
 
@@ -29,7 +28,6 @@ class Connection:
 
         # Internal
         self.__unsubscribe_flags__ = {}           # Used to implement unsubscribe
-        self.__auto_reconnect_flag__ = False      #
 
     # ===================================================================================
     # Main functions (override me)
@@ -74,12 +72,6 @@ class Connection:
         Callback function for when a new message arrives. Data can be a dict or a list of
         dict. This function is used by the read_async, subscribe async and subscribe
         methods.
-        """
-        return
-
-    def on_open_error(self, error):
-        """
-        Callback function for when opening fails
         """
         return
 
@@ -467,7 +459,7 @@ class Connection:
         
         # Add data to buffer
         if key not in buffer: buffer[key] = []
-        buffer.append(data)
+        buffer[key].append(data)
         
         # Save buffer to local storage
         self.local_storage.set(LocalStorage.SNF_BUFFER, buffer)
