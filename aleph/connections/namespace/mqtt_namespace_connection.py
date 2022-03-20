@@ -94,7 +94,7 @@ class MqttNamespaceConnection(Connection):
 
     def read(self, key, **kwargs):
         # Generate read request
-        self.__generate_read_request__(key, **kwargs)
+        self.__generate_read_request__(key, False, **kwargs)
 
         # Wait for response
         t = time.time()
@@ -124,9 +124,8 @@ class MqttNamespaceConnection(Connection):
         while topic in self.mqtt_conn.subscribe_topics: pass  # Block thread
 
     def read_async(self, key, **kwargs):
-        response_code = self.__generate_read_request__(key, **kwargs)
-        response_topic = self.key_to_topic(key, response_code)
-        self.mqtt_conn.subscribe_single(response_topic)
+        self.__generate_read_request__(key, True, **kwargs)
+        # This does not throw a timeout exception
 
     def subscribe_async(self, key, time_step=None):
         topic = self.key_to_topic(key)
@@ -138,23 +137,27 @@ class MqttNamespaceConnection(Connection):
     # ===================================================================================
     # Private
     # ===================================================================================
+    def __clean_read_data__(self, key, data, **kwargs):
+        # Data is list of records
+        if not isinstance(data, list): return [data]
+
     def __on_new_mqtt_message__(self, topic, message):
         try:
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
             data = self.mqtt_message_to_data(message)
-
-            # Response to read request
-            if topic == self.__read_request_topic__: self.__read_request_data__ = data
-
-            # Callback
             if len(data) == 0: return
-            self.on_new_data(key, data)
+
+            if topic == self.__read_request_topic__:
+                self.__read_request_topic__ = None
+                self.__read_request_data__ = data
+            else:
+                self.on_new_data(key, data)
 
         except Exception as e:
             self.on_read_error(Error(e, client_id=self.client_id))
 
-    def __generate_read_request__(self, key, **kwargs):
+    def __generate_read_request__(self, key, async_request, **kwargs):
         # Create request message
         request = {"response_code": str(random.randint(0, 999999999))}
 
@@ -162,13 +165,14 @@ class MqttNamespaceConnection(Connection):
         for kw in kwargs: request[kw] = kwargs[kw]
         request["cleaned"] = False
 
-        # Send request
+        # Get topic and message
         topic = self.key_to_topic(key, "r")
         message = self.data_to_mqtt_message(request)
 
         # Subscribe to response
-        self.__read_request_topic__ = self.key_to_topic(key, request["response_code"])
-        self.mqtt_conn.subscribe_single(self.__read_request_topic__)
+        request_topic = self.key_to_topic(key, request["response_code"])
+        if not async_request: self.__read_request_topic__ = request_topic
+        self.mqtt_conn.subscribe_single(request_topic)
 
         # Publish request
         self.mqtt_conn.publish(topic, message)

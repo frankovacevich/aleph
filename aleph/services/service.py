@@ -12,9 +12,11 @@ class Service:
     namespace_connection = None
     connection = None
 
+    # Status
+    status = None
+
     def __init__(self, service_id=""):
         self.service_id = service_id
-        self.status = None
 
     # ===================================================================================
     # Main events (override me)
@@ -97,16 +99,17 @@ class Service:
         self.connection.on_read_error = self.on_connection_read_error
         self.connection.on_write_error = self.on_connection_write_error
 
+        # Open connections
+        self.namespace_connection.open_async()
+        self.connection.open_async()
+        time.sleep(1)  # Give it some time for connections to open
+
         # Status change callbacks
         self.namespace_connection.on_connect = self.__on_status_change__
         self.namespace_connection.on_disconnect = self.__on_status_change__
         self.connection.on_connect = self.__on_status_change__
         self.connection.on_disconnect = self.__on_status_change__
-
-        # Open connections
-        self.namespace_connection.open_async()
-        self.connection.open_async()
-        time.sleep(5)  # Give it some time for connections to open
+        self.__on_status_change__()
 
         # Subscribe to keys
         for key in self.namespace_subs_keys:

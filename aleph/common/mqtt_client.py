@@ -131,7 +131,7 @@ class MqttClient:
     # Publish
     # ===================================================================================
     def publish(self, topic, payload, qos=None):
-        print("PUBLISHING TO ", topic)
+        print("PUBLISHING TO ", topic, payload)
         msg_info = self.mqtt_client.publish(topic, payload, qos if qos is not None else self.qos)
         return msg_info
 

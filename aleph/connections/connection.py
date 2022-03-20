@@ -132,7 +132,7 @@ class Connection:
 
         except Exception as e:
             self.on_read_error(Error(e, client_id=self.client_id, key=key, kw_args=kwargs))
-            return []
+            return None
 
     def safe_write(self, key, data):
         """
@@ -308,7 +308,8 @@ class Connection:
         if "cleaned" in kwargs and kwargs["cleaned"]: return kwargs
 
         # Get and set last read time
-        last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {key: now(unixts=True)})[key]
+        last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+        last_t = last_t[key] if key in last_t else now(unixts=True)
 
         # Preset args
         args = {
