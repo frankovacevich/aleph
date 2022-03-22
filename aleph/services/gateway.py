@@ -11,7 +11,7 @@ class GatewayService(Service):
     def __init__(self, service_id):
         super().__init__(service_id)
 
-        # Load connections
+        # Load features
         self.namespace_connection = self.local_namespace_connection
         self.connection = self.remote_namespace_connection
         self.local_namespace_connection.persistent = True
