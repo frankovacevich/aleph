@@ -99,10 +99,10 @@ class Service:
         self.connection.on_read_error = self.on_connection_read_error
         self.connection.on_write_error = self.on_connection_write_error
 
-        # Open connections
+        # Open features
         self.namespace_connection.open_async()
         self.connection.open_async()
-        time.sleep(1)  # Give it some time for connections to open
+        time.sleep(1)  # Give it some time for features to open
 
         # Status change callbacks
         self.namespace_connection.on_connect = self.__on_status_change__
