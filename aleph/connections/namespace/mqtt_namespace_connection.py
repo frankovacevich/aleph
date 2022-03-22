@@ -54,8 +54,8 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.client_key = self.client_key
 
         self.mqtt_conn.persistent = self.persistent
-        self.mqtt_conn.on_disconnect = self.on_disconnect
-        self.mqtt_conn.on_connect = self.on_connect
+        self.mqtt_conn.on_disconnect = self.__on_disconnect__
+        self.mqtt_conn.on_connect = self.__on_connect__
         self.mqtt_conn.on_new_message = self.__on_new_mqtt_message__
 
         if self.birth_key is not None and self.birth_message is not None:
@@ -70,6 +70,8 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
+        # Need this to work correctly (why?)
+        time.sleep(0.01)
 
     def close(self):
         if self.mqtt_conn is None: return
@@ -104,9 +106,7 @@ class MqttNamespaceConnection(Connection):
                 raise Exceptions.ConnectionReadingTimeout()
 
         # Return response
-        response = self.__read_request_data__
-        self.__read_request_data__ = None
-        return response
+        return self.__read_request_data__
 
     # ===================================================================================
     # Opening async (same as open)
@@ -140,6 +140,7 @@ class MqttNamespaceConnection(Connection):
     def __clean_read_data__(self, key, data, **kwargs):
         # Data is list of records
         if not isinstance(data, list): return [data]
+        else: return data
 
     def __on_new_mqtt_message__(self, topic, message):
         try:
@@ -171,7 +172,9 @@ class MqttNamespaceConnection(Connection):
 
         # Subscribe to response
         request_topic = self.key_to_topic(key, request["response_code"])
-        if not async_request: self.__read_request_topic__ = request_topic
+        if not async_request:
+            self.__read_request_topic__ = request_topic
+            self.__read_request_data__ = None
         self.mqtt_conn.subscribe_single(request_topic)
 
         # Publish request

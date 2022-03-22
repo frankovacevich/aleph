@@ -64,7 +64,6 @@ class MqttClient:
             self.on_disconnect()
 
     def __on_new_message__(self, client, userdata, msg):
-        # TODO: avoid messages from the same client
         topic = str(msg.topic)
         message = str(msg.payload.decode())
 
@@ -119,6 +118,7 @@ class MqttClient:
             raise
 
     def disconnect(self):
+        self.mqtt_client.loop_stop()
         self.mqtt_client.disconnect()
         self.mqtt_client = None
 
@@ -131,7 +131,6 @@ class MqttClient:
     # Publish
     # ===================================================================================
     def publish(self, topic, payload, qos=None):
-        print("PUBLISHING TO ", topic, payload)
         msg_info = self.mqtt_client.publish(topic, payload, qos if qos is not None else self.qos)
         return msg_info
 

@@ -91,13 +91,7 @@ class Connection:
         """
         Callback function for when the connection is open
         """
-        # Flush store and forward buffer
-        if self.store_and_forward:
-            self.__store_and_forward_flush_buffer__()
-
-        # If not persistent wipe out last times
-        if not self.persistent:
-            self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
+        return
 
     def on_disconnect(self):
         """
@@ -191,9 +185,23 @@ class Connection:
                     s = False
 
             # Callbacks
-            if s and not s_prev: self.on_connect()
-            if not s and s_prev: self.on_disconnect()
+            if s and not s_prev: self.__on_connect__()
+            if not s and s_prev: self.__on_disconnect__()
             s_prev = s
+
+    def __on_connect__(self):
+        # Flush store and forward buffer
+        if self.store_and_forward:
+            self.__store_and_forward_flush_buffer__()
+
+        # If not persistent wipe out last times
+        if not self.persistent:
+            self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
+
+        self.on_connect()
+
+    def __on_disconnect__(self):
+        self.on_disconnect()
 
     # ===================================================================================
     # More reading functions
@@ -455,12 +463,11 @@ class Connection:
     # ===================================================================================
     def __store_and_forward_add_to_buffer__(self, key, data):
         # Get buffer from local storage
-        buffer = self.local_storage.get(LocalStorage.SNF_BUFFER)
-        if buffer is None: buffer = {}
+        buffer = self.local_storage.get(LocalStorage.SNF_BUFFER, {})
         
         # Add data to buffer
         if key not in buffer: buffer[key] = []
-        buffer[key].append(data)
+        buffer[key] += data
         
         # Save buffer to local storage
         self.local_storage.set(LocalStorage.SNF_BUFFER, buffer)
@@ -478,7 +485,7 @@ class Connection:
             except: new_buffer[key] = data
 
         # Save buffer to local storage
-        self.local_storage.set(LocalStorage.SNF_BUFFER, buffer)
+        self.local_storage.set(LocalStorage.SNF_BUFFER, new_buffer)
 
     # ===================================================================================
     # Report by exception
@@ -561,11 +568,3 @@ class Connection:
         past_values[key] = data_as_dict
         self.local_storage.set(LocalStorage.PAST_VALUES, past_values)
         return data_that_changed
-
-    # ===================================================================================
-    # Other
-    # ===================================================================================
-    def __store_last_time_read__(self, key, t):
-        last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_times[key] = t
-        self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
