@@ -5,7 +5,7 @@ from aleph.common.logical_backup import LogicalBackup
 
 key = "test"
 
-# Create connections and backup
+# Create features and backup
 RC = RandomConnection()
 RC.delay = 0
 SQ = SqliteConnection()
