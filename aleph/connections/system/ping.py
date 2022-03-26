@@ -5,6 +5,10 @@ import socket
 
 class PingConnection(Connection):
 
+    def __init__(self, client_id=""):
+        super().__init__(client_id)
+        self.report_by_exception = True
+
     def read(self, key, **kwargs):
         """
         Returns True if there's ping to the given IP, else False

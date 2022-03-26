@@ -122,6 +122,7 @@ class Connection:
 
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
+
             return data
 
         except Exception as e:
@@ -322,7 +323,7 @@ class Connection:
         # Preset args
         args = {
             "fields": "*",
-            "since": last_t,
+            "since": parse_datetime(last_t),
             "until": None,
             "limit": 0,
             "offset": 0,
@@ -390,7 +391,7 @@ class Connection:
                     record["t"] = parse_datetime(record["t"])
                     # Timestamp in valid range
                     if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
-                    if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                    if kwargs["until"] is not None and kwargs["until"] <= record["t"]: continue
                     # Timestamp in timezone
                     record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
@@ -433,13 +434,13 @@ class Connection:
         cleaned_data = []
         for record in data:
 
-            # Time
             if self.clean_on_write:
+                # Time
                 if "t" not in record: record["t"] = now(string=True)
                 else: record["t"] = parse_datetime_to_string(record["t"])
 
-            # Flatten record
-            record = flatten_dict(record)
+                # Flatten record
+                record = flatten_dict(record)
 
             # Check model
             if key in self.models:

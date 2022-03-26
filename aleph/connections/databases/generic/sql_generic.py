@@ -83,7 +83,6 @@ class SQLGenericDB:
 
         # Run query
         query = "SELECT " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
-        print(query)
         cur = self.client.cursor()
         cur.execute(query)
 
@@ -183,7 +182,7 @@ class SQLGenericDB:
             if f in fmap or f in ["t", "id", "t_", "deleted_"]: continue
             if isinstance(v, str): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BOOL;'
-            elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' INT;'
+            elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BIG INT;'
             elif isinstance(v, float): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' DOUBLE PRECISION;'
 
         # Execute update table query
@@ -224,9 +223,3 @@ class SQLGenericDB:
     def __sql_bool__(self, v):
         if self.dbs == "postgres": return "TRUE" if v else "FALSE"
         return "1" if v else "0"
-
-    def __check_value__(self, v):
-        if isinstance(v, str) and len(v) > 255: return False
-        elif isinstance(v, int) and (v < -2147483648 or v > 2147483647): return False
-        elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)): return False
-        return True

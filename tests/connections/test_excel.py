@@ -14,6 +14,7 @@ class TestExcelConnection(ExcelConnection):
 
     def __init__(self):
         super().__init__()
+        self.read_from_copy = False
         self.file = "/home/al/Desktop/test.xlsx"
         self.local_storage = FileLocalStorage("/home/al/Desktop/local_storage.txt")
 

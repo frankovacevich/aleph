@@ -30,9 +30,12 @@ def cap_value(x, max_x, min_x=None):
 
 class DataModel:
 
-    def __init__(self, key, fields):
+    def __init__(self, key, **fields):
         self.key = key
-        self.fields = {field.name: field for field in fields}
+
+        for f in fields:
+            fields[f].name = f
+        self.fields = fields
 
         # Optional
         self.db_table = key                            # Table name in db
@@ -204,100 +207,131 @@ class DataField:
     # ==================================================================================================================
 
     @staticmethod
-    def text(name, max_length=255, **kwargs):
+    def text(name="", max_length=255, **kwargs):
         if max_length > 65535: raise Exception("Text max_length must be between 0 and 65535")
 
-        return DataField(name=name,
-                         type="text",
-                         max_length=max_length,
-                         validator=lambda x, l=max_length: isinstance(x, str) and len(x) <= l,
-                         parser=str,
-                         html_input="select" if "choices" in kwargs else "text",
-                         **kwargs)
+        default_args = {
+            "type": "text",
+            "max_length": max_length,
+            "validator": lambda x, l=max_length: isinstance(x, str) and len(x) <= l,
+            "parser": str,
+            "html_input": "select" if "choices" in kwargs else "text"
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def integer(name, **kwargs):
-        return DataField(name=name,
-                         type="int",
-                         validator=lambda x: isinstance(x, int),
-                         parser=int,
-                         html_input="select" if "choices" in kwargs else "number",
-                         **kwargs)
+    def integer(name="", **kwargs):
+        default_args = {
+            "type": "int",
+            "validator": lambda x: isinstance(x, int),
+            "parser": int,
+            "html_input": "select" if "choices" in kwargs else "number",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def float(name, **kwargs):
-        return DataField(name=name,
-                         type="float",
-                         validator=lambda x: isinstance(x, float),
-                         parser=float,
-                         html_input="number",
-                         **kwargs)
+    def float(name="", **kwargs):
+        default_args = {
+            "type": "float",
+            "validator": lambda x: isinstance(x, float),
+            "parser": float,
+            "html_input": "number",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def bool(name, **kwargs):
-        return DataField(name=name,
-                         type="bool",
-                         validator=lambda x: isinstance(x, bool),
-                         parser=lambda x: True if x else False,
-                         html_input="checkbox",
-                         **kwargs)
+    def bool(name="", **kwargs):
+        default_args = {
+            "type": "bool",
+            "validator": lambda x: isinstance(x, bool),
+            "parser": lambda x: True if x else False,
+            "html_input": "checkbox",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def foreign_key(name, namespace_key, foreign_display, **kwargs):
-        return DataField(name=name,
-                         foreign_key=namespace_key,        # Namespace key (table) to which the foreign key points
-                         foreign_display=foreign_display,  # A string (field) or a function (of record) (see docs)
-                         html_input="select",
-                         parser=str,
-                         **kwargs)
+    def foreign_key(name="", namespace_key="", foreign_display="", **kwargs):
+        default_args = {
+            "foreign_key": namespace_key,        # Namespace key (table) to which the foreign key points
+            "foreign_display": foreign_display,  # A string (field) or a function (of record) (see docs)
+            "html_input": "select",
+            "parser": str,
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def biginteger(name, **kwargs):
+    def biginteger(name="", **kwargs):
         bigint_max = 9223372036854775807
-        return DataField(name=name,
-                         type="biginteger",
-                         validator=lambda x, m=bigint_max: isinstance(x, int) and -m < x < m,
-                         parser=lambda x, m=bigint_max: int(cap_value(x, m)),
-                         html_input="number",
-                         **kwargs)
+
+        default_args = {
+            "type": "biginteger",
+            "validator": lambda x, m=bigint_max: isinstance(x, int) and -m < x < m,
+            "parser": lambda x, m=bigint_max: int(cap_value(x, m)),
+            "html_input": "number",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def decimal(name, max_digits=10, decimal_places=2, **kwargs):
+    def decimal(name="", max_digits=10, decimal_places=2, **kwargs):
         if max_digits > 65: raise Exception("Decimal max_digits must be less than 65")
         if decimal_places > 10: raise Exception("Decimal decimal_places must be less than 10")
 
-        return DataField(name=name,
-                         type="decimal",
-                         max_digits=max_digits,
-                         decimal_places=decimal_places,
-                         validator=lambda x, m=max_digits: isinstance(x, Decimal) and m > x > -m,
-                         parser=lambda x: Decimal(str(x)),
-                         html_input="number",
-                         **kwargs)
+        default_args = {
+            "type": "decimal",
+            "max_digits": max_digits,
+            "decimal_places": decimal_places,
+            "validator": lambda x, m=max_digits: isinstance(x, Decimal) and m > x > -m,
+            "parser": lambda x: Decimal(str(x)),
+            "html_input": "number",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def time(name, **kwargs):
-        return DataField(name=name,
-                         type="time",
-                         validator=lambda x: isinstance(x, str),
-                         parser=parse_time_to_string,
-                         html_input="time",
-                         **kwargs)
+    def time(name="", **kwargs):
+        default_args = {
+            "type": "time",
+            "validator": lambda x: isinstance(x, str),
+            "parser": parse_time_to_string,
+            "html_input": "time",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def date(name, **kwargs):
-        return DataField(name=name,
-                         type="date",
-                         validator=lambda x: isinstance(x, str),
-                         parser=parse_date_to_string,
-                         html_input="date",
-                         **kwargs)
+    def date(name="", **kwargs):
+        default_args = {
+            "type": "date",
+            "validator": lambda x: isinstance(x, str),
+            "parser": parse_date_to_string,
+            "html_input": "date",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)
 
     @staticmethod
-    def datetime(name, **kwargs):
-        return DataField(name=name,
-                         type="datetime",
-                         validator=lambda x: isinstance(x, str),
-                         parser=lambda x: parse_datetime(x).strftime("%Y-%m-%d %H:%M:%S"),
-                         html_input="datetime-local",
-                         **kwargs)
+    def datetime(name="", **kwargs):
+        default_args = {
+            "type": "datetime",
+            "validator": lambda x: isinstance(x, str),
+            "parser": lambda x: parse_datetime(x).strftime("%Y-%m-%d %H:%M:%S"),
+            "html_input": "datetime-local",
+        }
+
+        default_args.update(kwargs)
+        return DataField(name, **default_args)

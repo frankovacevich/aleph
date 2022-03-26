@@ -4,10 +4,10 @@ import sqlite3
 
 
 class SqliteConnection(Connection):
+    file = "./main.db"
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
-        self.file = "./main.db"
 
         # Private
         self.clean_on_read = False
@@ -30,3 +30,9 @@ class SqliteConnection(Connection):
         self.sql_generic.client = sqlite3.connect(self.file)
         self.sql_generic.write(key, data)
         self.sql_generic.client.close()
+
+    def run_query(self, query):
+        self.sql_generic.client = sqlite3.connect(self.file)
+        result = self.sql_generic.run_query(query)
+        self.sql_generic.client.close()
+        return result
