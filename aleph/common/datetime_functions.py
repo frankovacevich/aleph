@@ -13,7 +13,7 @@ def now(string=False, unixts=False):
     """
     Returns current datetime in UTC as datetime.datetime (default) or string
     """
-    t = datetime.datetime.today().replace(tzinfo=tzlocal()).astimezone(tzutc())
+    t = datetime.datetime.today().replace(tzinfo=tzlocal()).replace(microsecond=0).astimezone(tzutc())
     if string: return t.strftime("%Y-%m-%dT%H:%M:%SZ")
     elif unixts: return float(int(time.time()))
     else: return t
@@ -106,3 +106,4 @@ def parse_date_to_string(date):
     Parses only a date (not a datetime)
     """
     return parser.parse(date).strftime("%Y-%m-%d")
+

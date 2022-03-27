@@ -10,15 +10,21 @@ class SqliteConnection(Connection):
         super().__init__(client_id)
 
         # Private
+        self.client = None
         self.clean_on_read = False
         self.sql_generic = SQLGenericDB("sqlite")
 
     def open(self):
-        self.sql_generic.client = sqlite3.connect(self.file)
-        self.sql_generic.client.close()
+        self.client = sqlite3.connect(self.file)
+        self.sql_generic.client = self.client
+        self.client.close()
 
     def close(self):
         return
+
+    def is_connected(self):
+        if self.client is None: return False
+        return True
 
     def read(self, key, **kwargs):
         self.sql_generic.client = sqlite3.connect(self.file)

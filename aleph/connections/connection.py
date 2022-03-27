@@ -114,14 +114,14 @@ class Connection:
             # Call read function
             data = self.read(key, **args)
 
-            # Store last time read
-            if args["until"] is None:
-                last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-                last_times[key] = now(unixts=True)
-                self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
-
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
+
+            # Store last time read
+            if args["until"] is not None:
+                last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+                last_times[key] = args["until"].timestamp()
+                self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
             return data
 
@@ -224,7 +224,7 @@ class Connection:
             t = w.step(t)
             # Read data
             data = self.safe_read(key)
-            if len(data) == 0: continue
+            if data is None or len(data) == 0: continue
             # Callback
             self.on_new_data(key, data)
 
@@ -318,13 +318,13 @@ class Connection:
 
         # Get and set last read time
         last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = last_t[key] if key in last_t else now(unixts=True)
+        last_t = last_t[key] if key in last_t else now()
 
         # Preset args
         args = {
             "fields": "*",
             "since": parse_datetime(last_t),
-            "until": None,
+            "until": now(),
             "limit": 0,
             "offset": 0,
             "timezone": "UTC",

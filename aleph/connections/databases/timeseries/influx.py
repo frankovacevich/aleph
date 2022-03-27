@@ -34,6 +34,11 @@ class InfluxDBTimeSeriesConnection(Connection):
         self.client.close()
         super().close()
 
+    def is_connected(self):
+        if self.client is None: return False
+        return True
+        # Use self.client.ping?
+
     # ===================================================================================
     # Read
     # ===================================================================================

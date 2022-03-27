@@ -35,6 +35,12 @@ class MongoDBConnection(Connection):
         self.client = None
         super().close()
 
+    def is_connected(self):
+        if self.client is None: return False
+        try: self.client.server_info()
+        except: return False
+        return True
+
     def read(self, key, **kwargs):
         # Parse args and key
         args = self.__clean_read_args__(key, **kwargs)
