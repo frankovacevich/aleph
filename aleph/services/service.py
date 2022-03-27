@@ -116,7 +116,11 @@ class Service:
             self.namespace_connection.subscribe_async(key)
 
         for key in self.connection_subs_keys:
-            self.connection.subscribe_async(key)
+            if isinstance(self.connection_subs_keys, dict):
+                time_step = self.connection_subs_keys[key]
+            else:
+                time_step = self.connection.default_time_step
+            self.connection.subscribe_async(key, time_step)
 
         # Custom setup
         self.setup()
