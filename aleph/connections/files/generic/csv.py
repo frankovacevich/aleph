@@ -12,6 +12,8 @@ class CsvConnection(Connection):
 
     def __init__(self):
         self.__init__()
+        self.clean_on_read = False
+        self.report_by_exception = True
 
         # File path to the CSV
         self.file = ""
@@ -42,12 +44,8 @@ class CsvConnection(Connection):
     # Read
     # ===================================================================================
     def read(self, key, **kwargs):
-
         # If data hasn't changed, don't do anything
         if not self.file_handler.file_has_been_modified(key): return []
-
-        # Set flag to compare to previous upon returning
-        kwargs["compare_to_previous"] = True
 
         # Open file
         file = self.file_handler.get_file_for_reading(key)

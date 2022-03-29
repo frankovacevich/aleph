@@ -15,6 +15,8 @@ class ExcelConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+        self.report_by_exception = True
+        self.clean_on_read = False
 
         # File path to the Excel
         self.file = ""
@@ -25,9 +27,6 @@ class ExcelConnection(Connection):
         self.columns = COLUMN_LETTERS               # List of the names of the columns
         self.include_row_number = True              # Include row number in returned records
         self.temp_folder = ""
-
-        # Set compare to previous to True
-        self.report_by_exception = True
 
         # Private
         self.file_handler = None

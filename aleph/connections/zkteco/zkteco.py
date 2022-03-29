@@ -6,6 +6,7 @@ class ZKTecoConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+        self.clean_on_read = True
 
         # Connection parameters
         self.ip_address = "192.168.0.99"

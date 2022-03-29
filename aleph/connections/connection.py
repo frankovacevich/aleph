@@ -18,7 +18,7 @@ class Connection:
         # Optional parameters: reading
         self.default_time_step = 10               # Default time step for loops
         self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
-        self.clean_on_read = False                # Check since, until, fields, filter, limit, offset and order
+        self.clean_on_read = True                 # Check since, until, fields, filter, limit, offset and order
         self.report_by_exception = False          # When reading data, only returns changing values
 
         # Optional parameters: writing
@@ -107,30 +107,12 @@ class Connection:
         try:
             # Check if connection is open
             if not self.is_connected(): self.open()
-
             # Clean arguments and read data
             args = self.__clean_read_args__(key, **kwargs)
-
             # Call read function
             data = self.read(key, **args)
-
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
-
-            # Store last time read
-            # if args["until"] is not None:
-            #     last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-            #     last_times[key] = args["until"].timestamp()
-            #     self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
-
-            # Store last time read
-            #last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-            #if data is not None and len(data) > 0 and "t" in data[-1]:
-            #    last_times[key] = data[-1]["t"]
-            #elif key not in last_times and args["since"] is not None:
-            #    last_times[key] = args["since"].timestamp()
-            #self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
-
             return data
 
         except Exception as e:
@@ -326,7 +308,7 @@ class Connection:
 
         # Get and set last read time
         last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = parse_datetime(last_t[key]) if key in last_t else None
+        last_t = parse_datetime(last_t[key]) if key in last_t else now()
 
         # Preset args
         args = {

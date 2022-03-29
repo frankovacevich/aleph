@@ -1,7 +1,7 @@
 from aleph import Connection
+import unittest
 import datetime
 import time
-from aleph.common.datetime_functions import now
 
 
 class TestConn(Connection):
@@ -23,34 +23,67 @@ class TestConn(Connection):
     ]
 
     def read(self, key, **kwargs):
-
-        print(kwargs["since"], kwargs["until"])
+        # print(kwargs["since"], kwargs["until"])
         return [x.copy() for x in self.data if x["t"] <= datetime.datetime.now()]
 
     def on_read_error(self, error):
         raise
 
-T = TestConn()
-for t in T.data: print(t["x"], t["t"])
+
+class TestLastTimeRead(unittest.TestCase):
+
+    def test1(self):
+        T = TestConn()
+        time.sleep(2)
+        data = T.safe_read("")
+        print(data)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 1 and data[0]["x"] == 5)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 1 and data[0]["x"] == 6)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 4)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 1 and data[0]["x"] == 8)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 1 and data[0]["x"] == 9)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 1 and data[0]["x"] == 10)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 0)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 0)
+
+        time.sleep(5)
+        data = T.safe_read("")
+        print(data)
+        self.assertTrue(len(data) == 0)
 
 
-time.sleep(2)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
-time.sleep(5)
-print(T.safe_read(""))
+
+if __name__ == '__main__':
+    unittest.main()
