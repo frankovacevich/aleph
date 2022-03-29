@@ -40,11 +40,11 @@ def parse_datetime(date, round_if_string=False):
 
     # unix timestamp
     elif isinstance(date, float):
-        date = datetime.datetime.utcfromtimestamp(date).replace(tzinfo=tzutc())
+        date = datetime.datetime.utcfromtimestamp(date).replace(tzinfo=tzutc(), microsecond=0)
 
     # empty string
     elif date == "":
-        date = datetime.datetime.today().replace(hour=0, minute=0, second=0).astimezone(tzutc())
+        date = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0).astimezone(tzutc())
         if round_if_string: date = date + datetime.timedelta(days=1)
 
     # string
@@ -62,7 +62,7 @@ def parse_datetime(date, round_if_string=False):
 
     # datetime object
     elif isinstance(date, datetime.datetime):
-        date = date.astimezone(tzutc())
+        date = date.replace(microsecond=0).astimezone(tzutc())
 
     return date
 
