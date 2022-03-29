@@ -147,7 +147,6 @@ class MqttNamespaceConnection(Connection):
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
             data = self.mqtt_message_to_data(message)
-            if len(data) == 0: return
 
             if topic == self.__read_request_topic__:
                 self.__read_request_topic__ = None
