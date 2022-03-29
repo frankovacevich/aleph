@@ -6,6 +6,7 @@ class AllenBradleyConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+        self.clean_on_read = False
         self.ip_address = ""
         self.model = "MicroLogix"  # ControlLogix, CompactLogix, Micro800, SLC500, MicroLogix
         self.plc = None

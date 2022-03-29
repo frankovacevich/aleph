@@ -7,6 +7,7 @@ class PingConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+        # self.clean_on_read = False
         self.report_by_exception = True
 
     def read(self, key, **kwargs):
