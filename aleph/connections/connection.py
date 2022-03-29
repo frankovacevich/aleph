@@ -18,7 +18,7 @@ class Connection:
         # Optional parameters: reading
         self.default_time_step = 10               # Default time step for loops
         self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
-        self.clean_on_read = True                 # Check since, until, fields, filter, limit, offset and order
+        self.clean_on_read = False                # Check since, until, fields, filter, limit, offset and order
         self.report_by_exception = False          # When reading data, only returns changing values
 
         # Optional parameters: writing
@@ -118,10 +118,18 @@ class Connection:
             data = self.__clean_read_data__(key, data, **args)
 
             # Store last time read
-            if args["until"] is not None:
-                last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-                last_times[key] = args["until"].timestamp()
-                self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
+            # if args["until"] is not None:
+            #     last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+            #     last_times[key] = args["until"].timestamp()
+            #     self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
+
+            # Store last time read
+            #last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+            #if data is not None and len(data) > 0 and "t" in data[-1]:
+            #    last_times[key] = data[-1]["t"]
+            #elif key not in last_times and args["since"] is not None:
+            #    last_times[key] = args["since"].timestamp()
+            #self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
             return data
 
@@ -318,13 +326,13 @@ class Connection:
 
         # Get and set last read time
         last_t = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-        last_t = last_t[key] if key in last_t else now()
+        last_t = parse_datetime(last_t[key]) if key in last_t else None
 
         # Preset args
         args = {
             "fields": "*",
-            "since": parse_datetime(last_t),
-            "until": now(),
+            "since": last_t,
+            "until": None,
             "limit": 0,
             "offset": 0,
             "timezone": "UTC",
@@ -370,6 +378,13 @@ class Connection:
         if self.report_by_exception and len(data) > 0 and "id_" in data[0]:
             data = self.__report_by_exception_ids__(key, data)
 
+        # Get last time read
+        last_times = {}
+        if self.clean_on_read:
+            last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+            if key not in last_times:
+                last_times[key] = kwargs["since"].timestamp() if kwargs["since"] is not None else None
+
         # For each record:
         for record in data:
 
@@ -389,9 +404,12 @@ class Connection:
                 if "t" in record:
                     # Record has a timestamp
                     record["t"] = parse_datetime(record["t"])
+                    # Update last time read
+                    if last_times[key] is None or last_times[key] < record["t"].timestamp():
+                        last_times[key] = record["t"].timestamp()
                     # Timestamp in valid range
-                    if kwargs["since"] is not None and kwargs["since"] > record["t"]: continue
-                    if kwargs["until"] is not None and kwargs["until"] <= record["t"]: continue
+                    if kwargs["since"] is not None and kwargs["since"] >= record["t"]: continue
+                    if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
                     # Timestamp in timezone
                     record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
@@ -405,6 +423,10 @@ class Connection:
 
             cleaned_data.append(record)
             continue
+
+        # Update last time read
+        if self.clean_on_read:
+            self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
         if self.clean_on_read:
             # Order
