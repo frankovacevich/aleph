@@ -37,11 +37,9 @@ class ExcelConnection(Connection):
     def open(self):
         self.file_handler = FileHandler(self.file, self.read_from_copy)
         self.file_handler.temp_folder = self.temp_folder
-        super().open()
 
     def close(self):
         self.file_handler = None
-        super().close()
 
     # ===================================================================================
     # Read
