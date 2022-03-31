@@ -56,9 +56,10 @@ def parse_datetime(date, round_if_string=False):
 
         # try parse
         else:
-            date = parser.parse(date).astimezone(tzutc())
+            date = parser.parse(date)
             if round_if_string and date.hour == 0 and date.minute == 0 and date.second == 0:
                 date = date + datetime.timedelta(days=1)
+            date = date.astimezone(tzutc())
 
     # datetime object
     elif isinstance(date, datetime.datetime):
