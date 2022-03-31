@@ -31,6 +31,8 @@ class MqttNamespaceConnection(Connection):
         # Connection properties
         self.store_and_forward = True
         self.clean_on_read = False
+        self.force_close_on_read_error = False
+        self.force_close_on_write_error = False
 
         # Aux
         self.mqtt_conn = None
@@ -121,7 +123,11 @@ class MqttNamespaceConnection(Connection):
     def subscribe(self, key, time_step=None):
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
-        while topic in self.mqtt_conn.subscribe_topics: pass  # Block thread
+        while topic in self.mqtt_conn.subscribe_topics: # Block thread
+            try:
+                pass
+            except KeyboardInterrupt:
+                self.unsubscribe(key)
 
     def read_async(self, key, **kwargs):
         self.__generate_read_request__(key, True, **kwargs)
@@ -147,6 +153,8 @@ class MqttNamespaceConnection(Connection):
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
             data = self.mqtt_message_to_data(message)
+
+            if data is None: raise Exception("Remote service error")
 
             if topic == self.__read_request_topic__:
                 self.__read_request_topic__ = None

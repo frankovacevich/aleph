@@ -12,22 +12,24 @@ class Connection:
 
     def __init__(self, client_id=""):
 
-        self.client_id = client_id                # Assign the connection a client id (required if persistent = True)
-        self.local_storage = LocalStorage()       # Local storage instance
+        self.client_id = client_id               # Assign the connection a client id (required if persistent = True)
+        self.local_storage = LocalStorage()      # Local storage instance
 
         # Optional parameters: reading
-        self.default_time_step = 10               # Default time step for loops
-        self.persistent = False                   # Remembers last record (equivalent to mqtt clean session = False)
-        self.clean_on_read = True                 # Check since, until, fields, filter, limit, offset and order
-        self.report_by_exception = False          # When reading data, only returns changing values
+        self.default_time_step = 10              # Default time step for loops
+        self.persistent = False                  # Remembers last record (equivalent to mqtt clean session = False)
+        self.clean_on_read = True                # Check since, until, fields, filter, limit, offset and order
+        self.report_by_exception = False         # When reading data, only returns changing values
+        self.force_close_on_read_error = True    # Call close() when reading fails
 
         # Optional parameters: writing
-        self.models = {}                          # Dict {key: DataModel} (for data validation)
-        self.store_and_forward = False            # Resends failed writes
-        self.clean_on_write = True                # Clean data when writing (adds time)
+        self.models = {}                         # Dict {key: DataModel} (for data validation)
+        self.store_and_forward = False           # Resends failed writes
+        self.clean_on_write = True               # Clean data when writing (adds time)
+        self.force_close_on_write_error = True   # Call close() when writing fails
 
         # Internal
-        self.__unsubscribe_flags__ = {}           # Used to implement unsubscribe
+        self.__unsubscribe_flags__ = {}          # Used to implement unsubscribe
 
     # ===================================================================================
     # Main functions (override me)
@@ -116,6 +118,7 @@ class Connection:
             return data
 
         except Exception as e:
+            if self.force_close_on_read_error: self.close()
             self.on_read_error(Error(e, client_id=self.client_id, key=key, kw_args=kwargs))
             return None
 
@@ -138,6 +141,7 @@ class Connection:
             if self.store_and_forward: self.__store_and_forward_flush_buffer__()
             return True
         except Exception as e:
+            if self.force_close_on_write_error: self.close()
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return False
@@ -314,7 +318,7 @@ class Connection:
         args = {
             "fields": "*",
             "since": last_t,
-            "until": None,
+            "until": now(),
             "limit": 0,
             "offset": 0,
             "timezone": "UTC",
@@ -331,7 +335,7 @@ class Connection:
             elif isinstance(fields, str): args["fields"] = [fields]
 
         if "since" in kwargs: args["since"] = parse_datetime(kwargs["since"])
-        if "until" in kwargs: args["until"] = parse_datetime(kwargs["until"])
+        if "until" in kwargs: args["until"] = parse_datetime(kwargs["until"], True)
         if "limit" in kwargs: args["limit"] = int(kwargs["limit"])
         if "offset" in kwargs: args["offset"] = int(kwargs["offset"])
         if "timezone" in kwargs: args["timezone"] = kwargs["timezone"]
@@ -386,12 +390,12 @@ class Connection:
                 if "t" in record:
                     # Record has a timestamp
                     record["t"] = parse_datetime(record["t"])
-                    # Update last time read
-                    if last_times[key] is None or last_times[key] < record["t"].timestamp():
-                        last_times[key] = record["t"].timestamp()
                     # Timestamp in valid range
                     if kwargs["since"] is not None and kwargs["since"] >= record["t"]: continue
                     if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                    # Update last time read
+                    if last_times[key] is None or last_times[key] < record["t"].timestamp():
+                        last_times[key] = record["t"].timestamp()
                     # Timestamp in timezone
                     record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
