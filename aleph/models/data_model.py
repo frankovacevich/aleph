@@ -35,6 +35,7 @@ class DataModel:
 
         for f in fields:
             fields[f].name = f
+            fields[f].html_label = f.replace("_", " ").replace(".", " / ").title()
         self.fields = fields
 
         # Optional
@@ -105,6 +106,9 @@ class DataModel:
             return new_record
         else:
             return None
+
+    def sql_create_statement(self):
+        pass
 
     def to_html(self, record={}, as_table=True):
         """
