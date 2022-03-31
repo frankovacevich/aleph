@@ -55,8 +55,8 @@ class SQLGenericDB:
         since = args.pop("since", None)
         until = args.pop("until", None)
         if since is None and until is None: time_filter = ""
-        elif since is not None: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "'"
-        elif until is not None: time_filter = "t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        elif since is not None and until is None: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "'"
+        elif until is not None and since is None: time_filter = "t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
         else: time_filter = "t >= '" + since.strftime('%Y-%m-%d %H:%M:%S') + "' AND t <= '" + until.strftime('%Y-%m-%d %H:%M:%S') + "'"
         if time_filter != "": where_clauses.append(time_filter)
 
