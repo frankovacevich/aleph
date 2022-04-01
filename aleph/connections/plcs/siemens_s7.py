@@ -7,6 +7,7 @@ class SiemensS7Connection(Connection):
     def __init__(self, client_id=""):
         super().__init__(client_id)
         self.clean_on_read = False
+        self.multithread = False
 
         # Parameters
         self.ip_address = "localhost"

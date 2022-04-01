@@ -7,8 +7,13 @@ class AllenBradleyConnection(Connection):
     def __init__(self, client_id=""):
         super().__init__(client_id)
         self.clean_on_read = False
+        self.multithread = False
+
+        # Parameters
         self.ip_address = ""
         self.model = "MicroLogix"  # ControlLogix, CompactLogix, Micro800, SLC500, MicroLogix
+
+        # Private
         self.plc = None
 
     def open(self):

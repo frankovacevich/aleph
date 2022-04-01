@@ -5,6 +5,7 @@ from ..common.wait_one_step import WaitOneStep
 from ..common.local_storage import LocalStorage
 from ..common.data_filter import DataFilter
 import threading
+import asyncio
 import time
 
 
@@ -21,6 +22,7 @@ class Connection:
         self.clean_on_read = True                # Check since, until, fields, filter, limit, offset and order
         self.report_by_exception = False         # When reading data, only returns changing values
         self.force_close_on_read_error = True    # Call close() when reading fails
+        self.multithread = True                  # If true, uses threading, else uses asyncio
 
         # Optional parameters: writing
         self.models = {}                         # Dict {key: DataModel} (for data validation)
@@ -30,6 +32,9 @@ class Connection:
 
         # Internal
         self.__unsubscribe_flags__ = {}          # Used to implement unsubscribe
+
+        self.__async_loop__ = asyncio.new_event_loop()
+        threading.Thread(target=self.__async_loop__.run_forever).start()
 
     # ===================================================================================
     # Main functions (override me)
@@ -156,20 +161,13 @@ class Connection:
         Calls is_connected on a loop and tries to reconnect if disconnected
         """
         if time_step is None: time_step = self.default_time_step
-        open_thread = threading.Thread(target=self.__open_async_aux__,
-                                       name="Open async",
-                                       args=(time_step,),
-                                       daemon=True)
-        open_thread.start()
+        asyncio.run_coroutine_threadsafe(self.__open_async_aux__(time_step), self.__async_loop__)
 
-    def __open_async_aux__(self, time_step):
+    async def __open_async_aux__(self, time_step):
         w = WaitOneStep(time_step)
-        t = w.step(0)
 
         s_prev = False
         while True:
-            t = w.step(t)
-
             # Check status and try to reopen
             s = self.is_connected()
             if not s:
@@ -183,6 +181,8 @@ class Connection:
             if s and not s_prev: self.__on_connect__()
             if not s and s_prev: self.__on_disconnect__()
             s_prev = s
+
+            await w.async_wait()
 
     def __on_connect__(self):
         # Flush store and forward buffer
@@ -202,6 +202,16 @@ class Connection:
     # More reading functions
     # ===================================================================================
 
+    def read_async(self, key, **kwargs):
+        """
+        Executes the safe_read function without blocking the main thread.
+        """
+        asyncio.run_coroutine_threadsafe(self.__read_async_aux__(key, **kwargs), self.__async_loop__)
+
+    async def __read_async_aux__(self, key, **kwargs):
+        data = self.safe_read(key, **kwargs)
+        self.on_new_data(key, data)
+
     def subscribe(self, key, time_step=None):
         """
         Executes the safe_read function in a loop. This method blocks the main thread.
@@ -209,45 +219,35 @@ class Connection:
         if time_step is None: time_step = self.default_time_step
         self.__unsubscribe_flags__[key] = True
         w = WaitOneStep(time_step)
-        t = w.step(0)
 
         while True:
-            # Break loop if unsubscribed
             if not self.__unsubscribe_flags__[key]: break
-            # Sleep
-            t = w.step(t)
-            # Read data
             data = self.safe_read(key)
             if data is None or len(data) == 0: continue
-            # Callback
             self.on_new_data(key, data)
+            w.wait()
 
-    def read_async(self, key, **kwargs):
-        """
-        Executes the safe_read function without blocking the main thread.
-        """
-        read_thread = threading.Thread(target=self.__read_async_aux__,
-                                       name="Read async " + key,
-                                       args=(key,),
-                                       kwargs=kwargs,
-                                       daemon=True)
-        read_thread.start()
+    async def __subscribe_async_aux__(self, key, time_step):
+        self.__unsubscribe_flags__[key] = True
+        w = WaitOneStep(time_step)
 
-    def __read_async_aux__(self, key, **kwargs):
-        data = self.safe_read(key, **kwargs)
-        self.on_new_data(key, data)
+        while True:
+            if not self.__unsubscribe_flags__[key]: break
+            data = self.safe_read(key)
+            if data is None or len(data) == 0: continue
+            self.on_new_data(key, data)
+            await w.async_wait()
 
     def subscribe_async(self, key, time_step=None):
         """
         Executes the subscribe function without blocking the main thread.
         """
         if time_step is None: time_step = self.default_time_step
-        if key in self.__unsubscribe_flags__: return
-        subscribe_thread = threading.Thread(target=self.subscribe,
-                                            name="Subscribe async",
-                                            args=(key, time_step,),
-                                            daemon=True)
-        subscribe_thread.start()
+
+        if self.multithread:
+            threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
+        else:
+            asyncio.run_coroutine_threadsafe(self.__subscribe_async_aux__(key, time_step), self.__async_loop__)
 
     def unsubscribe(self, key):
         self.__unsubscribe_flags__[key] = False
