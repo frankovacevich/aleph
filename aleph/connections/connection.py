@@ -6,7 +6,10 @@ from ..common.local_storage import LocalStorage
 from ..common.data_filter import DataFilter
 import threading
 import asyncio
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 
 class Connection:
@@ -118,6 +121,7 @@ class Connection:
             args = self.__clean_read_args__(key, **kwargs)
             # Call read function
             data = self.read(key, **args)
+            if data is None: raise Exceptions.InvalidKey("Reading function returned None")
             # Clean data
             data = self.__clean_read_data__(key, data, **args)
             return data
@@ -210,6 +214,7 @@ class Connection:
 
     async def __read_async_aux__(self, key, **kwargs):
         data = self.safe_read(key, **kwargs)
+        if len(data) == 0 or data is None: return
         self.on_new_data(key, data)
 
     def subscribe(self, key, time_step=None):
@@ -221,11 +226,15 @@ class Connection:
         w = WaitOneStep(time_step)
 
         while True:
-            if not self.__unsubscribe_flags__[key]: break
-            data = self.safe_read(key)
-            if data is None or len(data) == 0: continue
-            self.on_new_data(key, data)
-            w.wait()
+            try:
+                if not self.__unsubscribe_flags__[key]: break
+                data = self.safe_read(key)
+                if data is None or len(data) == 0: continue
+                self.on_new_data(key, data)
+                w.wait()
+            except KeyboardInterrupt:
+                self.__unsubscribe_flags__[key] = False
+                break
 
     async def __subscribe_async_aux__(self, key, time_step):
         self.__unsubscribe_flags__[key] = True

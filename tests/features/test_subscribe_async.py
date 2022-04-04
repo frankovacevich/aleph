@@ -8,7 +8,7 @@ class MyConnection(Connection):
         super().__init__()
         self.connected_at = time.time()
         self.default_time_step = 5
-        self.multithread = False
+        self.multithread = True
         self.t0 = time.time()
 
     def open(self):
