@@ -155,11 +155,13 @@ class MqttNamespaceConnection(Connection):
             data = self.mqtt_message_to_data(message)
 
             if data is None: raise Exception("Remote service error")
+            if not isinstance(data, list): data = [data]
 
             if topic == self.__read_request_topic__:
                 self.__read_request_topic__ = None
                 self.__read_request_data__ = data
             else:
+                if len(data) == 0: return
                 self.on_new_data(key, data)
 
         except Exception as e:

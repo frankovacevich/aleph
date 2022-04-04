@@ -139,6 +139,7 @@ class Connection:
         # Clean data
         try:
             data = self.__clean_write_data__(key, data)
+            if len(data) == 0: return
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return False
@@ -165,6 +166,7 @@ class Connection:
         Calls is_connected on a loop and tries to reconnect if disconnected
         """
         if time_step is None: time_step = self.default_time_step
+        logger.info("Adding open_async coroutine")
         asyncio.run_coroutine_threadsafe(self.__open_async_aux__(time_step), self.__async_loop__)
 
     async def __open_async_aux__(self, time_step):
@@ -189,7 +191,7 @@ class Connection:
             await w.async_wait()
 
     def __on_connect__(self):
-        # Flush store and forward buffer
+        # Flush sx|tore and forward buffer
         if self.store_and_forward:
             self.__store_and_forward_flush_buffer__()
 
@@ -210,11 +212,12 @@ class Connection:
         """
         Executes the safe_read function without blocking the main thread.
         """
+        logger.info("Adding read_async coroutine for key %s", key)
         asyncio.run_coroutine_threadsafe(self.__read_async_aux__(key, **kwargs), self.__async_loop__)
 
     async def __read_async_aux__(self, key, **kwargs):
         data = self.safe_read(key, **kwargs)
-        if len(data) == 0 or data is None: return
+        if data is None or len(data) == 0: return
         self.on_new_data(key, data)
 
     def subscribe(self, key, time_step=None):
@@ -227,11 +230,11 @@ class Connection:
 
         while True:
             try:
+                w.wait()
                 if not self.__unsubscribe_flags__[key]: break
                 data = self.safe_read(key)
                 if data is None or len(data) == 0: continue
                 self.on_new_data(key, data)
-                w.wait()
             except KeyboardInterrupt:
                 self.__unsubscribe_flags__[key] = False
                 break
@@ -241,11 +244,11 @@ class Connection:
         w = WaitOneStep(time_step)
 
         while True:
+            await w.async_wait()
             if not self.__unsubscribe_flags__[key]: break
             data = self.safe_read(key)
             if data is None or len(data) == 0: continue
             self.on_new_data(key, data)
-            await w.async_wait()
 
     def subscribe_async(self, key, time_step=None):
         """
@@ -254,8 +257,10 @@ class Connection:
         if time_step is None: time_step = self.default_time_step
 
         if self.multithread:
+            logger.info("Creating subscribe_async thread for key %s", key)
             threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
         else:
+            logger.info("Adding subscribe_async coroutine for key %s", key)
             asyncio.run_coroutine_threadsafe(self.__subscribe_async_aux__(key, time_step), self.__async_loop__)
 
     def unsubscribe(self, key):

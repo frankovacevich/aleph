@@ -5,10 +5,16 @@ import asyncio
 class WaitOneStep:
 
     def __init__(self, time_step=1):
+        self.first_step = True
         self.time_step = time_step
         self.t = time.time()
 
     def wait(self):
+        if self.first_step:
+            self.t = time.time()
+            self.first_step = False
+            return
+
         delta = time.time() - self.t
 
         if delta > self.time_step:
@@ -18,6 +24,11 @@ class WaitOneStep:
             self.t = time.time()
 
     async def async_wait(self):
+        if self.first_step:
+            self.t = time.time()
+            self.first_step = False
+            return
+
         delta = time.time() - self.t
 
         if delta > self.time_step:

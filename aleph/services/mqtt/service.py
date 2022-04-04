@@ -24,17 +24,19 @@ class MqttService(Service):
 class MqttGatewayService(GatewayService):
     local_server = None
     remote_server = None
+    local_root_key = ""
+    remote_root_key = ""
 
     def accept_read_requests(self):
         self.local_server = MqttReadRequestsServer(
-            self.local_namespace_connection,
+            self.connection,
             self.local_root_key,
             self.on_read_request,
             self.on_read_request_error
         ).start()
 
         self.remote_server = MqttReadRequestsServer(
-            self.remote_namespace_connection,
+            self.namespace_connection,
             self.remote_root_key,
             self.on_read_request,
             self.on_read_request_error
