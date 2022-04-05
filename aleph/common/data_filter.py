@@ -143,8 +143,8 @@ class DataFilter:
                 elif v.startswith("=="): clause[x] = str2num(v[2:])
                 elif v.startswith("<="): clause[x] = {"$lte": str2num(v[2:])}
                 elif v.startswith(">="): clause[x] = {"$gte": str2num(v[2:])}
-                elif v.startswith("<"): clause[x] = {"$lt": str2num(v[2:])}
-                elif v.startswith(">"): clause[x] = {"$gt": str2num(v[2:])}
+                elif v.startswith("<"): clause[x] = {"$lt": str2num(v[1:])}
+                elif v.startswith(">"): clause[x] = {"$gt": str2num(v[1:])}
 
                 elif ";" in v and (v.startswith("(") or v.startswith("[")) and (v.endswith(")") or v.endswith("]")):
                     b = v[1:-1].split(";")

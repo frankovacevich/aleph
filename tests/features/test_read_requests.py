@@ -12,6 +12,7 @@ class TestReadRequests(unittest.TestCase):
         N.open()
         N.on_read_error = lambda e: e.raise_exception()
         data = N.safe_read("generic", since=None, limit=10)
+        print("DATA", data)
         N.close()
         self.assertIsNotNone(data)
         self.assertTrue(data)  # Not empty

@@ -43,7 +43,7 @@ class MongoDBConnection(Connection):
 
     def read(self, key, **kwargs):
         # Parse args and key
-        args = self.__clean_read_args__(key, **kwargs)
+        args = kwargs
         key = db_parse_key(key)
 
         # Prepare filter (time and filter)

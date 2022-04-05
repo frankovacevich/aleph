@@ -97,9 +97,9 @@ def parse_datetime_to_string(date, timezone="UTC"):
 
 def parse_time_to_string(t):
     """
-    Receives a time and returns a string HH:MM:SS.ffffff
+    Receives a time and returns a string HH:MM:SS
     """
-    return parser.parse(t).strftime("%H:%M:%S.%f")
+    return parser.parse(t).strftime("%H:%M:%S")
 
 
 def parse_date_to_string(date):
@@ -108,3 +108,18 @@ def parse_date_to_string(date):
     """
     return parser.parse(date).strftime("%Y-%m-%d")
 
+
+def day_range(since, until):
+    """
+    Returns a list of strings of dates YYYY-MM-DD between since and until
+    """
+    since = parse_datetime(since)
+    until = parse_datetime(until)
+
+    d = since
+    days = []
+    while d <= until:
+        days.append(d.strftime("%Y-%m-%d"))
+        d = d + datetime.timedelta(days=1)
+
+    return days
