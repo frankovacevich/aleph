@@ -1,4 +1,5 @@
 import time
+from ..connections.connection import Connection
 
 
 class Service:
@@ -10,7 +11,7 @@ class Service:
 
     # Connections
     namespace_connection = None
-    connection = None
+    connection = Connection()
 
     # Status
     status = None
