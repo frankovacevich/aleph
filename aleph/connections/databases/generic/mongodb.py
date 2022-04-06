@@ -28,12 +28,10 @@ class MongoDBConnection(Connection):
         if self.username is not None: url += "@"
         url += self.server + ":" + str(self.port)
         self.client = pymongo.MongoClient(url)
-        super().open()
 
     def close(self):
         if self.client is not None: self.client.close()
         self.client = None
-        super().close()
 
     def is_connected(self):
         if self.client is None: return False
@@ -61,13 +59,17 @@ class MongoDBConnection(Connection):
         deleted_filter = {}
         if self.add_del_filter: deleted_filter = {"deleted_": False}
 
-        filter_ = {"$and": [time_filter, find_filter, deleted_filter]}
+        null_filter = {}
+        if args["fields"] != "*" and len(args["fields"]) > 0:
+            null_filter = {"$or": [{db_parse_field(x): {"$ne": None}} for x in args["fields"]]}
+
+        filter_ = {"$and": [time_filter, find_filter, deleted_filter, null_filter]}
 
         # Prepare projection (fields)
         projection = {}
         if args["fields"] != "*":
-            projection = {x: True for x in args["fields"]}
-            # projection["t"] = True
+            projection = {db_parse_field(x): True for x in args["fields"]}
+            projection["t"] = True
         projection["_id"] = False
 
         # Get data from collection
