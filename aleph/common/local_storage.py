@@ -3,6 +3,7 @@ Different ways to store key:value pairs on the local storage
 Safe methods must fail silently
 """
 import pickle
+import json
 
 
 # ===================================================================================
@@ -56,10 +57,32 @@ class FileLocalStorage(LocalStorage):
         return value
 
 
+class JsonLocalStorage(LocalStorage):
+    def __init__(self, file):
+        self.file = file
+        super().__init__()
+
+    def load(self):
+        import os
+        if os.path.isfile(self.file):
+            with open(self.file, 'r') as f:
+                self.data = json.load(f)
+
+    def get(self, key, null_value=None):
+        return super().get(key, null_value)
+
+    def set(self, key, value):
+        super().set(key, value)
+        with open(self.file, "w+") as f:
+            json.dump(self.data, f)
+        return value
+
+
 # ===================================================================================
 # Sqlite Dict Storage (Uses pickle and sqlite)
 # ===================================================================================
 class SqliteDictLocalStorage(LocalStorage):
+
     def __init__(self, file):
         self.file = file
         self.sqlitedict = None
