@@ -5,7 +5,7 @@ def db_parse_key(key):
 
 
 def db_parse_field(field):
-    return field.replace("/", ".").replace(".", "__")
+    return field.replace(".", "__")
 
 
 def db_deparse_field(field):
