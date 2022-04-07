@@ -1,6 +1,7 @@
 from aleph.common.exceptions import *
 from ..service import Service
 from ..gateway import GatewayService
+import time
 
 
 # ===================================================================================
@@ -68,6 +69,7 @@ class MqttReadRequestsServer:
                 key = self.conn.topic_to_key(topic)
                 args = self.conn.mqtt_message_to_data(message)
                 if "response_code" not in args: return
+                if "t" not in args or time.time() - args["t"] > 10: return
 
                 # Generate response
                 response_topic = self.conn.key_to_topic(key, args["response_code"])

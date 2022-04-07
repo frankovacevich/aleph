@@ -149,6 +149,8 @@ class MqttNamespaceConnection(Connection):
         else: return data
 
     def __on_new_mqtt_message__(self, topic, message):
+        if topic.startswith("alv1/r"): return
+
         try:
             # Get key and data from mqtt message
             key = self.topic_to_key(topic)
@@ -169,7 +171,7 @@ class MqttNamespaceConnection(Connection):
 
     def __generate_read_request__(self, key, async_request, **kwargs):
         # Create request message
-        request = {"response_code": str(random.randint(0, 999999999))}
+        request = {"t": time.time(), "response_code": str(random.randint(0, 999999999))}
 
         # Add parameters
         for kw in kwargs: request[kw] = kwargs[kw]
