@@ -19,7 +19,7 @@ class MqttClient:
         self.password = ""
         self.subscribe_topics = []
         self.subscribe_single_topics = []
-        self.keepalive = 60
+        self.keepalive = 10
         self.persistent = False
 
         self.on_connect = None  # function()
@@ -118,6 +118,7 @@ class MqttClient:
             raise
 
     def disconnect(self):
+        if self.mqtt_client is None: return
         self.mqtt_client.loop_stop()
         self.mqtt_client.disconnect()
         self.mqtt_client = None
