@@ -69,7 +69,7 @@ class MqttNamespaceConnection(Connection):
 
     def open(self):
         self.create_client()
-        self.mqtt_conn.connect(timeout=self.default_time_step)
+        # self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
         # Need this to work correctly (why?)
