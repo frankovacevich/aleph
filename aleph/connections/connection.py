@@ -23,8 +23,6 @@ class Connection:
         self.default_time_step = 10                   # Default time step for loops
         self.persistent = False                       # Remembers last record, equivalent to mqtt clean session = False
         self.clean_on_read = True                     # Check since, until, fields, filter, limit, offset and order
-        self.report_by_exception = False              # When reading data, only returns changing values
-        self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
         self.force_close_on_read_error = True         # Call close() when reading fails
         self.multithread = True                       # If true, uses threading, else uses asyncio
 
@@ -32,6 +30,8 @@ class Connection:
         self.models = {}                              # Dict {key: DataModel} (for data validation)
         self.store_and_forward = False                # Resends failed writes
         self.clean_on_write = True                    # Clean data when writing (adds time)
+        self.report_by_exception = False              # Only returns changing values
+        self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
         self.force_close_on_write_error = True        # Call close() when writing fails
 
         # Internal
@@ -375,10 +375,6 @@ class Connection:
         if not isinstance(data, list): data = [data]
         cleaned_data = []
 
-        # Report by exception
-        if self.report_by_exception and len(data) > 0 and "id_" in data[0]:
-            data = self.__report_by_exception_ids__(key, data)
-
         # Get last time read
         last_times = {}
         if self.clean_on_read:
@@ -388,9 +384,6 @@ class Connection:
 
         # For each record:
         for record in data:
-
-            if self.report_by_exception and "id_" not in record:
-                record = self.__report_by_exception__(key, record)
 
             if self.clean_on_read:
                 # Check filter
@@ -452,10 +445,18 @@ class Connection:
         - Model is valid
         - data
         """
+
         if not isinstance(data, list): data = [data]
+
+        # Report by exception
+        if self.report_by_exception and len(data) > 0 and "id_" in data[0]:
+            data = self.__report_by_exception_ids__(key, data)
 
         cleaned_data = []
         for record in data:
+
+            if self.report_by_exception and "id_" not in record:
+                record = self.__report_by_exception__(key, record)
 
             if self.clean_on_write:
                 # Time
