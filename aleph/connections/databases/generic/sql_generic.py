@@ -43,10 +43,7 @@ class SQLGenericDB:
         # Parse args and key
         args = kwargs
         key = db_parse_key(key)
-
-        # Fields
         fields = args.pop("fields", "*")
-        if fields != "*": fields = ", ".join(map(db_parse_field, fields))
 
         # We collect all where clauses in a list
         where_clauses = []
@@ -54,6 +51,11 @@ class SQLGenericDB:
         # Null filter
         if fields != "*" and len(fields) > 0:
             where_clauses.append("(" + " IS NOT NULL OR ".join(fields) + " IS NOT NULL" + ")")
+
+        # Fields
+        if fields != "*":
+            if "t" not in fields: fields.append("t")
+            fields = ", ".join(map(db_parse_field, fields))
 
         # Time filter
         since = args.pop("since", None)
@@ -86,7 +88,7 @@ class SQLGenericDB:
         else: sorting_clause = " ORDER BY " + order + " ASC"
 
         # Run query
-        query = "SELECT t, " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
+        query = "SELECT " + fields + " FROM " + key + where_clause + sorting_clause + limit_and_offset
         cur = self.client.cursor()
         cur.execute(query)
 
@@ -96,8 +98,12 @@ class SQLGenericDB:
         result = []
         for record in data:
             dict_record = dict(zip(columns, record))
-            if "t" in dict_record: dict_record["t"] = dict_record["t"].replace(" ", "T") + "Z"
-            if "t_" in dict_record: dict_record["t_"] = dict_record["t_"].replace(" ", "T") + "Z"
+            if "t" in dict_record:
+                if isinstance(dict_record["t"], str): dict_record["t"] = dict_record["t"].replace(" ", "T") + "Z"
+                else: dict_record["t"] = dict_record["t"].strftime("%Y-%m-%dT%H:%M:%SZ")
+            if "t_" in dict_record:
+                if isinstance(dict_record["t_"], str): dict_record["t_"] = dict_record["t_"].replace(" ", "T") + "Z"
+                else: dict_record["t_"] = dict_record["t_"].strftime("%Y-%m-%dT%H:%M:%SZ")
             r = {f: dict_record[f] for f in dict_record if f not in ["id", "deleted_"] and dict_record[f] is not None}
             if len(r) == 0: continue
             result.append(r)
@@ -186,7 +192,7 @@ class SQLGenericDB:
             if f in fmap or f in ["t", "id", "t_", "deleted_"]: continue
             if isinstance(v, str): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' VARCHAR(255);'
             elif isinstance(v, bool): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BOOL;'
-            elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BIG INT;'
+            elif isinstance(v, int): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' BIGINT;'
             elif isinstance(v, float): query_update_table += 'ALTER TABLE ' + key + ' ADD ' + field_id + ' DOUBLE PRECISION;'
 
         # Execute update table query

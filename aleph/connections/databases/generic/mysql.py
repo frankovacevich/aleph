@@ -39,3 +39,6 @@ class MySQLConnection(Connection):
 
     def write(self, key, data):
         self.sql_generic.write(key, data)
+
+    def run_query(self, query):
+        return self.sql_generic.run_query(query)
