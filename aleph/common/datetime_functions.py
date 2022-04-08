@@ -113,9 +113,6 @@ def day_range(since, until):
     """
     Returns a list of strings of dates YYYY-MM-DD between since and until
     """
-    since = parse_datetime(since)
-    until = parse_datetime(until)
-
     d = since
     days = []
     while d <= until:
