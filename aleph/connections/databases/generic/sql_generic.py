@@ -51,6 +51,10 @@ class SQLGenericDB:
         # We collect all where clauses in a list
         where_clauses = []
 
+        # Null filter
+        if fields != "*" and len(fields) > 0:
+            where_clauses.append("(" + " IS NOT NULL OR ".join(fields) + " IS NOT NULL" + ")")
+
         # Time filter
         since = args.pop("since", None)
         until = args.pop("until", None)
@@ -64,10 +68,6 @@ class SQLGenericDB:
         args_filter = args.pop("filter", None)
         if args_filter is not None: where_clauses.append(args_filter.to_sql_where_clause(db_parse_field))
         where_clauses.append("deleted_ IS NOT TRUE")
-
-        # Null filter
-        if args["fields"] != "*" and len(args["fields"]) > 0:
-            where_clauses.append("(" + " IS NOT NULL OR ".join(args["fields"]) + " IS NOT NULL" + ")")
 
         # Collect all where clauses
         where_clause = " WHERE " + " AND ".join(where_clauses)
