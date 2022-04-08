@@ -115,7 +115,7 @@ def day_range(since, until):
     """
     d = since
     days = []
-    while d <= until:
+    while d < until:
         days.append(d.strftime("%Y-%m-%d"))
         d = d + datetime.timedelta(days=1)
 
