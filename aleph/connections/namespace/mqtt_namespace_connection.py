@@ -29,6 +29,7 @@ class MqttNamespaceConnection(Connection):
         self.read_timeout = 10
 
         # Connection properties
+        self.report_by_exception = True
         self.store_and_forward = True
         self.clean_on_read = False
         self.force_close_on_read_error = False
