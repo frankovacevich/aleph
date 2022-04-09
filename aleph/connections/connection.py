@@ -140,7 +140,7 @@ class Connection:
         # Clean data
         try:
             data = self.__clean_write_data__(key, data)
-            if len(data) == 0: return
+            if len(data) == 0: return True
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return False
