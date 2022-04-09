@@ -15,7 +15,6 @@ class ExcelConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
-        self.report_by_exception = True
         self.clean_on_read = False
 
         # File path to the Excel
@@ -40,6 +39,9 @@ class ExcelConnection(Connection):
 
     def close(self):
         self.file_handler = None
+
+    def is_connected(self):
+        return self.file_handler is not None
 
     # ===================================================================================
     # Read
