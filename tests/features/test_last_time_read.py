@@ -84,6 +84,5 @@ class TestLastTimeRead(unittest.TestCase):
         self.assertTrue(len(data) == 0)
 
 
-
 if __name__ == '__main__':
     unittest.main()
