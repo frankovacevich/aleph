@@ -23,16 +23,16 @@ class Connection:
         self.default_time_step = 10                   # Default time step for loops
         self.persistent = False                       # Remembers last record, equivalent to mqtt clean session = False
         self.clean_on_read = True                     # Check since, until, fields, filter, limit, offset and order
-        self.force_close_on_read_error = True         # Call close() when reading fails
         self.multithread = True                       # If true, uses threading, else uses asyncio
+        self.force_close_on_read_error = False        # Call close() when reading fails
 
         # Optional parameters: writing
         self.models = {}                              # Dict {key: DataModel} (for data validation)
         self.store_and_forward = False                # Resends failed writes
-        self.clean_on_write = True                    # Clean data when writing (adds time)
+        self.clean_on_write = True                    # Clean data when writing
         self.report_by_exception = False              # Only returns changing values
         self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
-        self.force_close_on_write_error = True        # Call close() when writing fails
+        self.force_close_on_write_error = False       # Call close() when writing fails
 
         # Internal
         self.__unsubscribe_flags__ = {}               # Used to implement unsubscribe
@@ -118,13 +118,24 @@ class Connection:
         try:
             # Check if connection is open
             if not self.is_connected(): self.open()
+
             # Clean arguments and read data
             args = self.__clean_read_args__(key, **kwargs)
+
             # Call read function
             data = self.read(key, **args)
             if data is None: raise Exceptions.InvalidKey("Reading function returned None")
+
             # Clean data
-            data = self.__clean_read_data__(key, data, **args)
+            if not isinstance(data, list): data = [data]
+            if self.clean_on_read:
+                data = self.__clean_read_data__(key, data, **args)
+            elif kwargs["timezone"] != "UTC":
+                for record in data:
+                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
+                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
+
+            # Return
             return data
 
         except Exception as e:
@@ -139,23 +150,25 @@ class Connection:
         """
         # Clean data
         try:
-            data = self.__clean_write_data__(key, data)
-            if len(data) == 0: return True
+            if not isinstance(data, list): data = [data]
+            if self.clean_on_write:
+                data = self.__clean_write_data__(key, data)
+                if len(data) == 0: return []
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
-            return False
+            return None
 
         # Write data
         try:
             if not self.is_connected(): self.open()
             self.write(key, data)
             if self.store_and_forward: self.__store_and_forward_flush_buffer__()
-            return True
+            return data
         except Exception as e:
             if self.force_close_on_write_error: self.close()
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
-            return False
+            return None
 
     # ===================================================================================
     # Opening
@@ -365,88 +378,64 @@ class Connection:
     def __clean_read_data__(self, key, data, **kwargs):
         """
         After reading data, make sure that:
-        - Data is list of records
-        - Check filter, fields, limit, offset and order
-        - Check that records have a timestamp and the timestamp is between since and until
-        - Check that records have a timestamp and the timestamp is in the right timezone
+        TODO: Complete comment
         """
 
-        # Data is list of records
-        if not isinstance(data, list): data = [data]
-        cleaned_data = []
-
         # Get last time read
-        last_times = {}
-        if self.clean_on_read:
-            last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
-            if key not in last_times:
-                last_times[key] = kwargs["since"].timestamp() if kwargs["since"] is not None else None
+        last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
+        if key not in last_times:
+            last_times[key] = kwargs["since"].timestamp() if kwargs["since"] is not None else None
 
         # For each record:
+        cleaned_data = []
         for record in data:
 
-            if self.clean_on_read:
-                # Check filter
-                if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record):
-                    continue
+            # Check filter
+            if kwargs["filter"] is not None and not kwargs["filter"].apply_to_record(record):
+                continue
 
-                # Check fields
-                if kwargs["fields"] != "*":
-                    record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
+            # Check fields
+            if kwargs["fields"] != "*":
+                record = {f: record[f] for f in record if f in kwargs["fields"] or f == "t" or f == "id_"}
 
-                # Check timestamp
-                if "t" in record:
-                    # Record has a timestamp
-                    record["t"] = parse_datetime(record["t"])
-                    # Timestamp in valid range
-                    if kwargs["since"] is not None and kwargs["since"] >= record["t"]: continue
-                    if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
-                    # Update last time read
-                    if last_times[key] is None or last_times[key] < record["t"].timestamp():
-                        last_times[key] = record["t"].timestamp()
-                    # Timestamp in timezone
-                    record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
+            # Check timestamp
+            if "t" in record:
+                # Record has a timestamp
+                record["t"] = parse_datetime(record["t"])
+                # Timestamp in valid range
+                if kwargs["since"] is not None and kwargs["since"] >= record["t"]: continue
+                if kwargs["until"] is not None and kwargs["until"] < record["t"]: continue
+                # Update last time read
+                if last_times[key] is None or last_times[key] < record["t"].timestamp():
+                    last_times[key] = record["t"].timestamp()
+                # Timestamp in timezone
+                record["t"] = datetime_to_string(record["t"], kwargs["timezone"])
 
-                if "t_" in record:
-                    record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
-
-            # Check timestamp is in the correct timezone
-            elif kwargs["timezone"] != "UTC":
-                if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
-                if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
+            if "t_" in record:
+                record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
 
             cleaned_data.append(record)
             continue
 
         # Update last time read
-        if self.clean_on_read:
-            self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
+        self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
 
-        if self.clean_on_read:
-            # Order
-            if kwargs["order"] is not None:
-                if kwargs["order"][0] == "-":
-                    cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
-                else:
-                    cleaned_data.sort(key=lambda x: x[kwargs["order"]])
+        # Order
+        if kwargs["order"] is not None:
+            if kwargs["order"][0] == "-": cleaned_data.sort(key=lambda x: x[kwargs["order"][1:]], reverse=True)
+            else: cleaned_data.sort(key=lambda x: x[kwargs["order"]])
 
-            # Limit and offset
-            if len(cleaned_data) > kwargs["offset"] > 0: cleaned_data = cleaned_data[0:-kwargs["offset"]]
-            if len(cleaned_data) > kwargs["limit"] > 0: cleaned_data = cleaned_data[-kwargs["limit"]:]
+        # Limit and offset
+        if len(cleaned_data) > kwargs["offset"] > 0: cleaned_data = cleaned_data[0:-kwargs["offset"]]
+        if len(cleaned_data) > kwargs["limit"] > 0: cleaned_data = cleaned_data[-kwargs["limit"]:]
 
         return cleaned_data
 
     def __clean_write_data__(self, key, data):
         """
         Makes sure that:
-        - Data is a list of record
-        - Records are flattened
-        - Every record in data has a timestamp (string, utc)
-        - Model is valid
-        - data
+        - TODO: Complete comment
         """
-
-        if not isinstance(data, list): data = [data]
 
         # Report by exception
         if self.report_by_exception and len(data) > 0 and "id_" in data[0]:
@@ -455,16 +444,16 @@ class Connection:
         cleaned_data = []
         for record in data:
 
+            # Report by exception
             if self.report_by_exception and "id_" not in record:
                 record = self.__report_by_exception__(key, record)
 
-            if self.clean_on_write:
-                # Time
-                if "t" not in record: record["t"] = now(string=True)
-                else: record["t"] = parse_datetime_to_string(record["t"])
+            # Time
+            if "t" not in record: record["t"] = now(string=True)
+            else: record["t"] = parse_datetime_to_string(record["t"])
 
-                # Flatten record
-                record = flatten_dict(record)
+            # Flatten record
+            record = flatten_dict(record)
 
             # Check model
             if key in self.models:
@@ -562,7 +551,7 @@ class Connection:
         """
         
         # Organize records by id
-        data_as_dict = {r["id_"]: r for r in data if "id_" in r}
+        data_as_dict = {r["id_"]: r.copy() for r in data if "id_" in r}
         if len(data_as_dict) == 0: return data
 
         # Get past values
@@ -586,7 +575,7 @@ class Connection:
             # If the # of fields in the past record is different from the new record:
             elif len(data_as_dict[record_id]) != len(aux_past[record_id]): changed = True
             # If some value has changed
-            elif False in [data_as_dict[record_id][v] == aux_past[record_id][v] for v in data_as_dict[record_id] if v != "t"]: changed = True
+            elif False in [data_as_dict[record_id][v] == aux_past[record_id][v] for v in data_as_dict[record_id] if v != "t" and v != "t_"]: changed = True
             
             # If changed, add to data_that_changed:
             if changed: data_that_changed.append(data_as_dict[record_id].copy())
