@@ -6,6 +6,7 @@ class AllenBradleyConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+        self.force_close_on_read_error = True
         self.clean_on_read = False
         self.multithread = False
 
