@@ -149,6 +149,9 @@ class MqttNamespaceConnection(Connection):
         if not isinstance(data, list): return [data]
         else: return data
 
+    def __clean_read_args__(self, key, **kwargs):
+        return kwargs
+
     def __on_new_mqtt_message__(self, topic, message):
         if topic.startswith("alv1/r"): return
 
