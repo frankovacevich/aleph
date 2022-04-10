@@ -1,46 +1,134 @@
 from aleph import Connection
+import unittest
 
 
-class MyConn(Connection):
+def remove_t(data):
+    ndata = []
+    for record in data:
+        ndata.append({r: record[r] for r in record if r not in ["t"]})
+    return ndata
+
+
+class TestConn(Connection):
 
     def __init__(self):
-        super().__init__()
+        super(TestConn, self).__init__()
         self.report_by_exception = True
+        self.last = None
 
-        self.i = -1
-        self.j = -1
-
-    def on_read_error(self, error):
-        error.raise_exception()
-
-    def read(self, key, **kwargs):
-
-        if key == "key_with_ids":
-
-            data = [
-                [{"id_": "1", "a": 1}, {"id_": "2", "a": 1}, {"id_": "3", "a": 2}],
-                [{"id_": "1", "a": 1}, {"id_": "2", "a": 5}, {"id_": "3", "a": 2}],
-                [{"id_": "1", "a": 2}, {"id_": "4", "a": 1}, {"id_": "5", "a": 2}],
-            ]
-
-            self.i += 1
-            return data[self.i]
-
-        if key == "key_without_ids":
-
-            data = [
-                {"a": 1, "b": 2, "c": 3},
-                {"a": 1, "b": 5, "c": 3},
-                {"a": 2, "b": 5, "c": 4},
-            ]
-
-            self.j += 1
-            return data[self.j]
+    def write(self, key, data):
+        self.last = data
 
 
-M = MyConn()
-print(M.safe_read("key_without_ids"))
-print(M.safe_read("key_without_ids"))
-print(M.safe_read("key_without_ids"))
+class TestReadRequests(unittest.TestCase):
 
-print(M.local_storage.get(M.local_storage.PAST_VALUES))
+    def test1(self):
+        conn = TestConn()
+
+        conn.safe_write("", {"a": 1, "b": 2, "c": 3})
+        self.assertListEqual(remove_t(conn.last), [{"a": 1, "b": 2, "c": 3}])
+
+        conn.safe_write("", {"a": 2, "b": 2, "c": 3})
+        self.assertListEqual(remove_t(conn.last), [{"a": 2}])
+
+        conn.safe_write("", {"a": 2, "c": 4})
+        self.assertListEqual(remove_t(conn.last), [{"c": 4}])
+
+        conn.safe_write("", {"b": 99})
+        self.assertListEqual(remove_t(conn.last), [{"b": 99}])
+
+    def test2(self):
+        conn = TestConn()
+
+        conn.safe_write("", [{"x": 1, "y": 2}, {"x": 9, "y": 2}])
+        self.assertListEqual(remove_t(conn.last), [{"x": 1, "y": 2}, {"x": 9}])
+
+        conn.safe_write("", [{"x": 9, "y": 9}])
+        self.assertListEqual(remove_t(conn.last), [{"y": 9}])
+
+        conn.safe_write("", [{"x": 9, "y": 9}, {"x": 10, "y": 9}])
+        self.assertListEqual(remove_t(conn.last), [{"x": 10}])
+
+        conn.safe_write("", [{"x": 10}])  # This should not trigger the "write" function
+        self.assertListEqual(remove_t(conn.last), [{"x": 10}])
+
+    def test3(self):
+        conn = TestConn()
+        import time
+        t0 = time.time() - 30
+        t1 = time.time()
+
+        conn.safe_write("", [{"x": 1, "y": 2, "t": t0}, {"x": 9, "y": 2, "t": t0}])
+        self.assertListEqual(remove_t(conn.last), [{"x": 1, "y": 2}, {"x": 9}])
+
+        conn.safe_write("", [{"x": 9, "y": 9, "t": t1}])
+        self.assertListEqual(remove_t(conn.last), [{"y": 9}])
+
+    def test4(self):
+        conn = TestConn()
+
+        conn.safe_write("", [
+            {"id_": 1, "u": 100, "v": 120},
+            {"id_": 2, "u": 100, "v": 121},
+            {"id_": 3, "u": 102, "v": 121}
+        ])
+        self.assertListEqual(remove_t(conn.last), [
+            {'id_': 1, 'u': 100, 'v': 120},
+            {'id_': 2, 'u': 100, 'v': 121},
+            {'id_': 3, 'u': 102, 'v': 121}
+        ])
+
+        conn.safe_write("", [
+            {"id_": 1, "u": 100, "v": 120},
+            {"id_": 2, "u": 100, "v": 121},
+            {"id_": 3, "u": 555, "v": 444}
+        ])
+        self.assertListEqual(remove_t(conn.last), [
+            {"id_": 3, "u": 555, "v": 444}
+        ])
+
+        conn.safe_write("", [
+            {'id_': 1, 'u': 1,   'v': 120},
+            {'id_': 2, 'u': 100, 'v': 121},
+            {'id_': 3, 'u': 102, 'v': 121}
+        ])
+        self.assertListEqual(remove_t(conn.last), [
+            {'id_': 1, 'u': 1,   'v': 120},
+            {'id_': 3, 'u': 102, 'v': 121}
+        ])
+
+    def test5(self):
+        conn = TestConn()
+        import time
+        t0 = time.time() - 30
+        t1 = time.time()
+
+        conn.safe_write("", [
+            {"id_": 1, "u": 100, "v": 120, "t": t0},
+            {"id_": 2, "u": 100, "v": 121, "t": t0},
+            {"id_": 3, "u": 102, "v": 121, "t": t0}
+        ])
+
+        conn.safe_write("", [
+            {"id_": 1, "u": 100, "v": 120, "t": t1},
+            {"id_": 2, "u": 100, "v": 121, "t": t1},
+            {"id_": 3, "u": 555, "v": 444, "t": t1}
+        ])
+        self.assertListEqual(remove_t(conn.last), [
+            {"id_": 3, "u": 555, "v": 444}
+        ])
+
+        conn.safe_write("", [
+            {"id_": 1, "u": 100, "v": 120},
+            {"id_": 2, "u": 100, "v": 121},
+            {"id_": 3, "u": 555, "v": 444}
+        ])
+        self.assertListEqual(remove_t(conn.last), [
+            {"id_": 1, "u": 100, "v": 120},
+            {"id_": 2, "u": 100, "v": 121},
+            {"id_": 3, "u": 555, "v": 444}
+        ])
+
+
+if __name__ == '__main__':
+    unittest.main()
