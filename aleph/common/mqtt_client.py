@@ -143,7 +143,7 @@ class MqttClient:
 
     def loop_async(self):
         self.__setup__()
-        if not self.connecting:
+        if not self.connecting and not self.connected:
             self.connecting = True
             self.mqtt_client.connect_async(self.broker_address, self.port, keepalive=self.keepalive)
         # The loop start method will handle reconnection automatically
