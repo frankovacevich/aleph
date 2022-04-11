@@ -68,12 +68,17 @@ class MqttNamespaceConnection(Connection):
             self.mqtt_conn.last_will_message = self.data_to_mqtt_message(self.last_will_message)
             self.mqtt_conn.last_will_topic = self.key_to_topic(self.last_will_key)
 
+            # Remove last will key from past values
+            past_values = self.local_storage.get(self.local_storage.PAST_VALUES, {})
+            past_values.pop(self.last_will_key, None)
+            self.local_storage.set(self.local_storage.PAST_VALUES, past_values)
+
     def open(self):
         self.create_client()
-        # self.mqtt_conn.connect(timeout=self.default_time_step)
+        self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
-        # Need this to work correctly (why?)
+        # Need this to work correctly
         time.sleep(0.01)
 
     def close(self):
