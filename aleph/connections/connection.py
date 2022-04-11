@@ -23,20 +23,21 @@ class Connection:
         self.default_time_step = 10                   # Default time step for loops
         self.persistent = False                       # Remembers last record, equivalent to mqtt clean session = False
         self.clean_on_read = True                     # Check since, until, fields, filter, limit, offset and order
-        self.multithread = True                       # If true, uses threading, else uses asyncio
+        self.multithread = True                       # If true, uses threading for subscribe_async, else uses asyncio
         self.force_close_on_read_error = False        # Call close() when reading fails
 
         # Optional parameters: writing
         self.models = {}                              # Dict {key: DataModel} (for data validation)
         self.store_and_forward = False                # Resends failed writes
         self.clean_on_write = True                    # Clean data when writing
-        self.report_by_exception = False              # Only returns changing values
+        self.report_by_exception = False              # Only returns changing values (clean_on_write must be True)
         self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
         self.force_close_on_write_error = False       # Call close() when writing fails
 
         # Internal
-        self.__unsubscribe_flags__ = {}               # Used to implement unsubscribe
+        self.__unsubscribe_flags__ = {}
 
+        # Start main parallel thread
         self.__async_loop__ = asyncio.new_event_loop()
         threading.Thread(target=self.__async_loop__.run_forever).start()
 
@@ -130,10 +131,10 @@ class Connection:
             if not isinstance(data, list): data = [data]
             if self.clean_on_read:
                 data = self.__clean_read_data__(key, data, **args)
-            elif kwargs["timezone"] != "UTC":
+            elif "timezone" in args and args["timezone"] != "UTC":
                 for record in data:
-                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
-                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
+                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], args["timezone"])
+                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], args["timezone"])
 
             # Return
             return data
@@ -205,7 +206,7 @@ class Connection:
             await w.async_wait()
 
     def __on_connect__(self):
-        # Flush sx|tore and forward buffer
+        # Flush store and forward buffer
         if self.store_and_forward:
             self.__store_and_forward_flush_buffer__()
 
