@@ -32,14 +32,10 @@ class Connection:
         self.clean_on_write = True                    # Clean data when writing
         self.report_by_exception = False              # Only returns changing values (clean_on_write must be True)
         self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
-        self.force_close_on_write_error = False       # Call close() when writing fails
 
         # Internal
         self.__unsubscribe_flags__ = {}
-
-        # Start main parallel thread
-        self.__async_loop__ = asyncio.new_event_loop()
-        threading.Thread(target=self.__async_loop__.run_forever).start()
+        self.__async_loop__ = None
 
     # ===================================================================================
     # Main functions (override me)
@@ -151,22 +147,33 @@ class Connection:
         """
         # Clean data
         try:
+            # Make data a list
             if not isinstance(data, list): data = [data]
+
+            # Clean data
             if self.clean_on_write:
                 data = self.__clean_write_data__(key, data)
                 if len(data) == 0: return []
+
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return None
 
         # Write data
         try:
-            if not self.is_connected(): self.open()
+            # Check that connection is open
+            if not self.is_connected(): raise Exceptions.ConnectionNotOpen()
+
+            # Write
             self.write(key, data)
+
+            # If write is successful, flush store and forward buffer
             if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+
+            # Return cleaned data
             return data
+
         except Exception as e:
-            if self.force_close_on_write_error: self.close()
             if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
             return None
@@ -182,6 +189,7 @@ class Connection:
         """
         if time_step is None: time_step = self.default_time_step
         logger.info("Adding open_async coroutine")
+        self.__start_async_thread__()
         asyncio.run_coroutine_threadsafe(self.__open_async_aux__(time_step), self.__async_loop__)
 
     async def __open_async_aux__(self, time_step):
@@ -219,6 +227,11 @@ class Connection:
     def __on_disconnect__(self):
         self.on_disconnect()
 
+    def __start_async_thread__(self):
+        if self.__async_loop__ is None:
+            self.__async_loop__ = asyncio.new_event_loop()
+            threading.Thread(target=self.__async_loop__.run_forever, daemon=True).start()
+
     # ===================================================================================
     # More reading functions
     # ===================================================================================
@@ -228,6 +241,7 @@ class Connection:
         Executes the safe_read function without blocking the main thread.
         """
         logger.info("Adding read_async coroutine for key %s", key)
+        self.__start_async_thread__()
         asyncio.run_coroutine_threadsafe(self.__read_async_aux__(key, **kwargs), self.__async_loop__)
 
     async def __read_async_aux__(self, key, **kwargs):
@@ -276,6 +290,7 @@ class Connection:
             threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
         else:
             logger.info("Adding subscribe_async coroutine for key %s", key)
+            self.__start_async_thread__()
             asyncio.run_coroutine_threadsafe(self.__subscribe_async_aux__(key, time_step), self.__async_loop__)
 
     def unsubscribe(self, key):
