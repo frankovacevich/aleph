@@ -1,14 +1,23 @@
 from ..connection import Connection
 from ping3 import ping
 import socket
+import time
 
 
 class PingConnection(Connection):
 
     def __init__(self, client_id=""):
         super().__init__(client_id)
+
+        # Connection parameters
         self.clean_on_read = False
         self.report_by_exception = True
+
+        # Other options
+        self.consecutive_pings_to_declare_dead = 2
+
+        # Internal
+        self.__ping_count__ = {}
 
     def read(self, key, **kwargs):
         """
@@ -24,12 +33,26 @@ class PingConnection(Connection):
             r = self.ping(key)
             key = key.replace(".", "_")
 
+        if r or key not in self.__ping_count__:
+            self.__ping_count__[key] = 0
+        else:
+            self.__ping_count__[key] += 1
+            if self.__ping_count__[key] >= self.consecutive_pings_to_declare_dead:
+                self.__ping_count__[key] = self.consecutive_pings_to_declare_dead
+                r = False
+            else:
+                r = True
+
         return {key: r}
+        # TODO: return {"device": key, "status": r}
 
     @staticmethod
     def ping(ip_address):
-        result = ping(ip_address)
-        return result is not None and result is not False
+        try:
+            result = ping(ip_address)
+            return result is not None and result is not False
+        except AttributeError:
+            return False
 
     @staticmethod
     def check_port(ip_address, port):
