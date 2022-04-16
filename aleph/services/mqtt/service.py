@@ -1,7 +1,10 @@
-from aleph.common.exceptions import *
-from ..service import Service
-from ..gateway import GatewayService
+from aleph.common.exceptions import Error
+from aleph import Service
+import threading
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 
 # ===================================================================================
@@ -11,34 +14,10 @@ class MqttService(Service):
     read_requests_server = None
 
     def accept_read_requests(self):
+        logger.info("Creating read requests server")
         self.read_requests_server = MqttReadRequestsServer(
             self.namespace_connection,
             self.read_request_keys,
-            self.on_read_request,
-            self.on_read_request_error
-        ).start()
-
-
-# ===================================================================================
-# Gateway service
-# ===================================================================================
-class MqttGatewayService(GatewayService):
-    local_server = None
-    remote_server = None
-    local_root_key = ""
-    remote_root_key = ""
-
-    def accept_read_requests(self):
-        self.local_server = MqttReadRequestsServer(
-            self.connection,
-            self.local_root_key,
-            self.on_read_request,
-            self.on_read_request_error
-        ).start()
-
-        self.remote_server = MqttReadRequestsServer(
-            self.namespace_connection,
-            self.remote_root_key,
             self.on_read_request,
             self.on_read_request_error
         ).start()
@@ -60,14 +39,21 @@ class MqttReadRequestsServer:
         for key in self.keys:
             topic = self.conn.key_to_topic(key, "r")
             self.conn.mqtt_conn.subscribe(topic)
-
         return self
 
     def __on_new_mqtt_message__(self, topic, message):
+        if self.conn.multithread:
+            threading.Thread(target=self.__on_new_mqtt_message_thread__, args=(topic, message), daemon=True).start()
+        else:
+            self.__on_new_mqtt_message_thread__(topic, message)
+
+    def __on_new_mqtt_message_thread__(self, topic, message):
         if topic.startswith("alv1/r/"):
             try:
                 key = self.conn.topic_to_key(topic)
                 args = self.conn.mqtt_message_to_data(message)
+                logger.info(f"Read request on {key} ? {args}")
+
                 if "response_code" not in args: return
                 if "t" not in args or time.time() - args["t"] > 10: return
 
@@ -81,7 +67,5 @@ class MqttReadRequestsServer:
 
             except Exception as e:
                 self.on_read_request_error(Error(e))
-
         else:
             self.conn.__on_new_mqtt_message__(topic, message)
-
