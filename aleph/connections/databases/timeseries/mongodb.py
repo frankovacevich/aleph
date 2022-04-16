@@ -17,4 +17,9 @@ class MongoDBTimeSeriesConnection(MongoDBConnection):
     def write(self, key, data):
         collection = self.client[self.database][db_parse_key(key)]  # [database][collection]
         collection.create_index('t')
-        collection.insert_many(list(map(self.__on_write_map__, data)))
+
+        for record in data:
+            set_record = self.__on_write_map__(record)
+            collection.update_one({"t": record["t"]}, {"$set": set_record}, upsert=True)
+
+        # OLD: collection.insert_many(list(map(self.__on_write_map__, data)))
