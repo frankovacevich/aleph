@@ -81,7 +81,7 @@ class SQLGenericDB:
         if limit != 0: limit_and_offset += " LIMIT " + str(limit)
         if offset != 0: limit_and_offset += " OFFSET " + str(offset)
 
-        # Order: influx only supports sorting by time
+        # Order
         order = args.pop("order", None)
         if order is None: sorting_clause = ""
         elif order[0] == "-": sorting_clause = " ORDER BY " + order[1:] + " DESC"
