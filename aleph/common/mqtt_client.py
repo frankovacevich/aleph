@@ -1,6 +1,5 @@
 import paho.mqtt.client as mqtt
 import time
-from ..common.exceptions import *
 
 
 class MqttClient:
@@ -67,6 +66,10 @@ class MqttClient:
         topic = str(msg.topic)
         message = str(msg.payload.decode())
 
+        # Unsubscribe from rogue topics
+        if topic not in self.subscribe_single_topics and topic not in self.subscribe_topics:
+            self.unsubscribe(topic)
+
         # Single subscribe
         if topic in self.subscribe_single_topics:
             self.unsubscribe(topic)
@@ -111,7 +114,7 @@ class MqttClient:
                 self.mqtt_client.loop()
                 if 0 < timeout < time.time() - t0:
                     self.connecting = False
-                    raise Exceptions.ConnectionOpeningTimeout("Mqtt Client (client_id = " + self.client_id + " failed to connect)")
+                    raise Exception("Mqtt Client (client_id = " + self.client_id + ") failed to connect)")
 
         except Exception:
             self.connecting = False
@@ -119,7 +122,7 @@ class MqttClient:
 
     def disconnect(self):
         if self.mqtt_client is None: return
-        self.mqtt_client.loop_stop()
+        # self.mqtt_client.loop_stop()
         self.mqtt_client.disconnect()
         self.mqtt_client = None
 
