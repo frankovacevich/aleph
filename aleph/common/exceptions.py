@@ -25,7 +25,8 @@ class Error:
 
     def message(self):
         args_str = "".join([str(x).title() + ": " + str(self.args[x]) + "\n" for x in self.args])
-        return repr(self.exception) + "\n" + args_str
+        if args_str !=  "": return repr(self.exception) + "\n" + args_str
+        return repr(self.exception)
 
     def traceback(self):
         return traceback.format_exc()
