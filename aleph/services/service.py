@@ -1,5 +1,8 @@
+from aleph import Connection
+import logging
 import time
-from ..connections.connection import Connection
+
+logger = logging.getLogger(__name__)
 
 
 class Service:
@@ -66,14 +69,12 @@ class Service:
     # ===================================================================================
     # Start read requests server
     # ===================================================================================
-
     def accept_read_requests(self):
         return
 
     # ===================================================================================
     # Private
     # ===================================================================================
-
     def __on_status_change__(self):
         status_0 = self.namespace_connection.is_connected()
         status_1 = self.connection.is_connected()
@@ -90,7 +91,6 @@ class Service:
     # ===================================================================================
     # Use me
     # ===================================================================================
-
     def run(self):
 
         # Main callbacks
@@ -133,5 +133,6 @@ class Service:
         self.accept_read_requests()
 
         # Run
+        logger.info("Starting service")
         while True:
-            pass
+            time.sleep(1)
