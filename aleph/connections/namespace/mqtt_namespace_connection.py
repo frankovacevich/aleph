@@ -39,6 +39,7 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn = None
         self.__read_request_topic__ = None
         self.__read_request_data__ = None
+        self.sender_code = str(random.randint(0, 9999999999))
 
     # ===================================================================================
     # Main functions
@@ -75,7 +76,7 @@ class MqttNamespaceConnection(Connection):
 
     def open(self):
         self.create_client()
-        self.mqtt_conn.connect(timeout=self.default_time_step)
+        # self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
         # Need this to work correctly
@@ -129,9 +130,9 @@ class MqttNamespaceConnection(Connection):
     def subscribe(self, key, time_step=None):
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
-        while topic in self.mqtt_conn.subscribe_topics: # Block thread
+        while topic in self.mqtt_conn.subscribe_topics:  # Block thread
             try:
-                pass
+                time.sleep(1)
             except KeyboardInterrupt:
                 self.unsubscribe(key)
 
@@ -158,6 +159,7 @@ class MqttNamespaceConnection(Connection):
         return kwargs
 
     def __on_new_mqtt_message__(self, topic, message):
+        # TODO: Start new thread for on_new_data if multithread. Remove this feature from mqtt service
         if topic.startswith("alv1/r"): return
 
         try:
@@ -184,7 +186,6 @@ class MqttNamespaceConnection(Connection):
 
         # Add parameters
         for kw in kwargs: request[kw] = kwargs[kw]
-        request["cleaned"] = False
 
         # Get topic and message
         topic = self.key_to_topic(key, "r")
