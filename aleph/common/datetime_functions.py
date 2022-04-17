@@ -102,11 +102,13 @@ def parse_time_to_string(t):
     return parser.parse(t).strftime("%H:%M:%S")
 
 
-def parse_date_to_string(date):
+def parse_date_to_string(date, return_format="%Y-%m-%d"):
     """
     Parses only a date (not a datetime)
     """
-    return parser.parse(date).strftime("%Y-%m-%d")
+    if isinstance(date, datetime.datetime):
+        return date.strftime(return_format)
+    return parser.parse(date).strftime(return_format)
 
 
 def day_range(since, until):
