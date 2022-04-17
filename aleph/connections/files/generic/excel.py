@@ -48,7 +48,7 @@ class ExcelConnection(Connection):
     # ===================================================================================
     def read(self, key, **kwargs):
         # If data hasn't changed, don't do anything
-        if not self.file_handler.file_has_been_modified(key): return []
+        if "since" in kwargs and kwargs["since"] is not None and not self.file_handler.file_has_been_modified(key): return []
 
         # Open workbook
         file = self.file_handler.get_file_for_reading(key)
@@ -65,6 +65,7 @@ class ExcelConnection(Connection):
 
         # Get begin row
         begin_row = 1
+        # limit = kwargs["limit"] if "limit" in kwargs and kwargs["limit"] < self.number_of_watching_rows else self.number_of_watching_rows
         if last_row > self.number_of_watching_rows:
             begin_row = last_row - self.number_of_watching_rows
 
