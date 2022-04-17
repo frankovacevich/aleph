@@ -69,7 +69,7 @@ class SQLGenericDB:
         # Filter
         args_filter = args.pop("filter", None)
         if args_filter is not None: where_clauses.append(args_filter.to_sql_where_clause(db_parse_field))
-        where_clauses.append("deleted_ IS NOT TRUE")
+        where_clauses.append(f"deleted_ IS NOT {'TRUE' if self.dbs != 'sqlite' else '1'}")
 
         # Collect all where clauses
         where_clause = " WHERE " + " AND ".join(where_clauses)
