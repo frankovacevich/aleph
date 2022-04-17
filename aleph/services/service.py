@@ -33,10 +33,10 @@ class Service:
         return self.connection.safe_read(key, **kwargs)
 
     def on_new_data_from_namespace(self, key, data):
-        self.connection.safe_write(key, data)
+        return self.connection.safe_write(key, data)
 
     def on_new_data_from_connection(self, key, data):
-        self.namespace_connection.safe_write(key, data)
+        return self.namespace_connection.safe_write(key, data)
 
     # ===================================================================================
     # Error handling (override me)
