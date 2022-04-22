@@ -11,18 +11,6 @@ logger = logging.getLogger(__name__)
 
 class MqttService(Service):
 
-    # Keys
-    read_request_keys = []
-    namespace_subs_keys = []
-    connection_subs_keys = []
-
-    # Connections
-    namespace_connection = MqttNamespaceConnection()
-    connection = Connection()
-
-    # Status
-    status = None
-
     # Private
     read_requests_server = None
 
