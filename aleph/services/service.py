@@ -30,10 +30,10 @@ class Service:
         return
 
     def on_new_data_from_namespace(self, key, data):
-        return self.connection.safe_write(key, data)
+        return self.connection.write_async(key, data)
 
     def on_new_data_from_connection(self, key, data):
-        return self.namespace_connection.safe_write(key, data)
+        return self.namespace_connection.write_async(key, data)
 
     # ===================================================================================
     # Error handling (override me)
@@ -96,13 +96,6 @@ class Service:
         self.namespace_connection.open_async()
         self.connection.open_async()
 
-        # Status change callbacks
-        self.namespace_connection.on_connect = self.__on_status_change__
-        self.namespace_connection.on_disconnect = self.__on_status_change__
-        self.connection.on_connect = self.__on_status_change__
-        self.connection.on_disconnect = self.__on_status_change__
-        self.__on_status_change__()
-
         # Subscribe to keys
         for key in self.namespace_subs_keys:
             self.namespace_connection.subscribe_async(key)
@@ -113,6 +106,14 @@ class Service:
             else:
                 time_step = self.connection.default_time_step
             self.connection.subscribe_async(key, time_step)
+
+        # Status change callbacks
+        time.sleep(1)
+        self.namespace_connection.on_connect = self.__on_status_change__
+        self.namespace_connection.on_disconnect = self.__on_status_change__
+        self.connection.on_connect = self.__on_status_change__
+        self.connection.on_disconnect = self.__on_status_change__
+        self.__on_status_change__()
 
         # Custom setup
         self.setup()
