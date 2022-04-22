@@ -67,7 +67,8 @@ class MqttClient:
         message = str(msg.payload.decode())
 
         # Unsubscribe from rogue topics
-        if topic not in self.subscribe_single_topics and topic not in self.subscribe_topics:
+        if topic not in self.subscribe_single_topics and topic not in self.subscribe_topics and \
+                True not in [topic.startswith(t[:-1]) for t in self.subscribe_topics]:
             self.unsubscribe(topic)
             return
 
