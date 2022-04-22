@@ -29,9 +29,6 @@ class Service:
     def setup(self):
         return
 
-    def on_read_request(self, key, **kwargs):
-        return self.connection.safe_read(key, **kwargs)
-
     def on_new_data_from_namespace(self, key, data):
         return self.connection.safe_write(key, data)
 
@@ -63,15 +60,6 @@ class Service:
     def on_namespace_write_error(self, error):
         return
 
-    def on_read_request_error(self, error):
-        return
-
-    # ===================================================================================
-    # Start read requests server
-    # ===================================================================================
-    def accept_read_requests(self):
-        return
-
     # ===================================================================================
     # Private
     # ===================================================================================
@@ -91,7 +79,8 @@ class Service:
     # ===================================================================================
     # Use me
     # ===================================================================================
-    def run(self):
+    def load(self):
+        logger.info("Loading service")
 
         # Main callbacks
         self.namespace_connection.on_new_data = self.on_new_data_from_namespace
@@ -129,10 +118,8 @@ class Service:
         # Custom setup
         self.setup()
 
-        # Load accept read requests server
-        self.accept_read_requests()
-
-        # Run
+    def run(self):
+        self.load()
         logger.info("Starting service")
         while True:
             time.sleep(1)
