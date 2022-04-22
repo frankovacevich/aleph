@@ -69,6 +69,7 @@ class MqttClient:
         # Unsubscribe from rogue topics
         if topic not in self.subscribe_single_topics and topic not in self.subscribe_topics:
             self.unsubscribe(topic)
+            return
 
         # Single subscribe
         if topic in self.subscribe_single_topics:
@@ -169,7 +170,7 @@ class MqttClient:
     # Subscribe
     # ===================================================================================
     def subscribe(self, topic):
-        self.mqtt_client.subscribe(topic)
+        self.mqtt_client.subscribe(topic, qos=self.qos)
         self.subscribe_topics.append(topic)
 
     def unsubscribe(self, topic):
