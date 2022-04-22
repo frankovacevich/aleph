@@ -23,7 +23,7 @@ class Connection:
         self.default_time_step = 10                   # Default time step for loops
         self.persistent = False                       # Remembers last record, equivalent to mqtt clean session = False
         self.clean_on_read = True                     # Check since, until, fields, filter, limit, offset and order
-        self.multithread = True                       # If true, uses threading for subscribe_async, else uses asyncio
+        self.multi_threaded = False                     # If true, uses threading for subscribe_async, else uses asyncio
         self.force_close_on_read_error = False        # Call close() when reading fails
 
         # Optional parameters: writing
@@ -108,7 +108,7 @@ class Connection:
         return
 
     # ===================================================================================
-    # Read and write safe functions
+    # Safe Read and Safe Write functions
     # ===================================================================================
 
     def safe_read(self, key, **kwargs):
@@ -162,7 +162,7 @@ class Connection:
         # Write data
         try:
             # Check that connection is open
-            if not self.is_connected(): raise Exceptions.ConnectionNotOpen()
+            if not self.is_connected(): self.open()
 
             # Write
             self.write(key, data)
@@ -179,18 +179,42 @@ class Connection:
             return None
 
     # ===================================================================================
-    # Opening
+    # On connect / disconnect event callbacks (use if overriding open_async)
+    # ===================================================================================
+    def __on_connect__(self):
+        # Flush store and forward buffer
+        if self.store_and_forward:
+            self.__store_and_forward_flush_buffer__()
+
+        # If not persistent wipe out last times
+        if not self.persistent:
+            self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
+
+        self.on_connect()
+
+    def __on_disconnect__(self):
+        self.on_disconnect()
+
+    # ===================================================================================
+    # Async functions
     # ===================================================================================
 
+    def __run_on_async_thread__(self, coroutine):
+        if self.__async_loop__ is None:
+            logging.info("Starting async thread")
+            self.__async_loop__ = asyncio.new_event_loop()
+            threading.Thread(target=self.__async_loop__.run_forever, daemon=True).start()
+
+        asyncio.run_coroutine_threadsafe(coroutine, self.__async_loop__)
+
+    # Opening
     def open_async(self, time_step=None):
         """
         Executes the open function without blocking the main thread
         Calls is_connected on a loop and tries to reconnect if disconnected
         """
         if time_step is None: time_step = self.default_time_step
-        logger.info("Adding open_async coroutine")
-        self.__start_async_thread__()
-        asyncio.run_coroutine_threadsafe(self.__open_async_aux__(time_step), self.__async_loop__)
+        self.__run_on_async_thread__(self.__open_async_aux__(time_step))
 
     async def __open_async_aux__(self, time_step):
         w = WaitOneStep(time_step)
@@ -213,45 +237,65 @@ class Connection:
 
             await w.async_wait()
 
-    def __on_connect__(self):
-        # Flush store and forward buffer
-        if self.store_and_forward:
-            self.__store_and_forward_flush_buffer__()
+    # Writing
+    def write_async(self, key, data):
+        """
+        Executes the safe_write function without blocking the main thread
+        If the connection does not allow multithreading, we use the async thread
+        This is an antipattern because we would be blocking the async thread
+        with the safe_write function, but we need this to use the connection
+        in only one thread.
+        """
+        if self.multi_threaded:
+            threading.Thread(target=self.safe_write, args=(key, data,), daemon=True).start()
+        else:
+            self.__run_on_async_thread__(self.__write_async_aux__(key, data))
 
-        # If not persistent wipe out last times
-        if not self.persistent:
-            self.local_storage.set(LocalStorage.LAST_TIME_READ, {})
+    async def __write_async_aux__(self, key, data):
+        self.safe_write(key, data)
 
-        self.on_connect()
-
-    def __on_disconnect__(self):
-        self.on_disconnect()
-
-    def __start_async_thread__(self):
-        if self.__async_loop__ is None:
-            self.__async_loop__ = asyncio.new_event_loop()
-            threading.Thread(target=self.__async_loop__.run_forever, daemon=True).start()
-
-    # ===================================================================================
-    # More reading functions
-    # ===================================================================================
-
+    # Reading
     def read_async(self, key, **kwargs):
         """
-        Executes the safe_read function without blocking the main thread.
+        Executes the read function without blocking the main thread.
+        As with the write_async function, it will be executed on and block
+        the async thread if the connection does not support multithreading
         """
-        logger.info("Adding read_async coroutine for key %s", key)
-        self.__start_async_thread__()
-        asyncio.run_coroutine_threadsafe(self.__read_async_aux__(key, **kwargs), self.__async_loop__)
+        self.__run_on_async_thread__(self.__read_async_aux__(key, **kwargs))
 
     async def __read_async_aux__(self, key, **kwargs):
         data = self.safe_read(key, **kwargs)
         if data is None or len(data) == 0: return
         self.on_new_data(key, data)
 
+    # Subscribing
+    def subscribe_async(self, key, time_step=None):
+        """
+        Executes the subscribe function without blocking the main thread.
+        """
+        if time_step is None: time_step = self.default_time_step
+
+        if self.multi_threaded:
+            logger.info("Creating subscribe_async thread for key %s", key)
+            threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
+        else:
+            logger.info("Adding subscribe_async coroutine for key %s", key)
+            self.__run_on_async_thread__(self.__subscribe_async_aux__(key, time_step))
+
+    async def __subscribe_async_aux__(self, key, time_step):
+        self.__unsubscribe_flags__[key] = True
+        w = WaitOneStep(time_step)
+
+        while True:
+            await w.async_wait()
+            if not self.__unsubscribe_flags__[key]: break
+            data = self.safe_read(key)
+            if data is None or len(data) == 0: continue
+            self.on_new_data(key, data)
+
     def subscribe(self, key, time_step=None):
         """
-        Executes the safe_read function in a loop. This method blocks the main thread.
+        Executes the read function on a loop, blocking the main thread
         """
         if time_step is None: time_step = self.default_time_step
         self.__unsubscribe_flags__[key] = True
@@ -267,31 +311,6 @@ class Connection:
             except KeyboardInterrupt:
                 self.__unsubscribe_flags__[key] = False
                 break
-
-    async def __subscribe_async_aux__(self, key, time_step):
-        self.__unsubscribe_flags__[key] = True
-        w = WaitOneStep(time_step)
-
-        while True:
-            await w.async_wait()
-            if not self.__unsubscribe_flags__[key]: break
-            data = self.safe_read(key)
-            if data is None or len(data) == 0: continue
-            self.on_new_data(key, data)
-
-    def subscribe_async(self, key, time_step=None):
-        """
-        Executes the subscribe function without blocking the main thread.
-        """
-        if time_step is None: time_step = self.default_time_step
-
-        if self.multithread:
-            logger.info("Creating subscribe_async thread for key %s", key)
-            threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
-        else:
-            logger.info("Adding subscribe_async coroutine for key %s", key)
-            self.__start_async_thread__()
-            asyncio.run_coroutine_threadsafe(self.__subscribe_async_aux__(key, time_step), self.__async_loop__)
 
     def unsubscribe(self, key):
         self.__unsubscribe_flags__[key] = False
@@ -541,7 +560,7 @@ class Connection:
         for v in record:
             if v == "t": continue
 
-            # Check if should resend regardless whether the value changed or not
+            # Check if we should resend regardless whether the value changed or not
             do_resend = False
             if self.report_by_exception_resend_after is not None:
                 if t - past_values[key][v][1] > self.report_by_exception_resend_after: do_resend = True
