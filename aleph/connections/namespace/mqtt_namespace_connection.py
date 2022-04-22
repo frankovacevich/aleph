@@ -76,7 +76,7 @@ class MqttNamespaceConnection(Connection):
 
     def open(self):
         self.create_client()
-        # self.mqtt_conn.connect(timeout=self.default_time_step)
+        self.mqtt_conn.connect(timeout=self.default_time_step)
         # We need loop async because otherwise the connection closes after a few seconds
         self.mqtt_conn.loop_async()
         # Need this to work correctly
@@ -118,15 +118,18 @@ class MqttNamespaceConnection(Connection):
         return self.__read_request_data__
 
     # ===================================================================================
-    # Opening async (same as open)
+    # Async functions
     # ===================================================================================
     def open_async(self, time_step=None):
         self.create_client()
         self.mqtt_conn.loop_async()
 
-    # ===================================================================================
-    # Subscribe and read async (error handling is done on __on_new_mqtt_message__)
-    # ===================================================================================
+    def write_async(self, key, data):
+        self.write(key, data)
+
+    def read_async(self, key, **kwargs):
+        self.__generate_read_request__(key, True, **kwargs)
+
     def subscribe(self, key, time_step=None):
         topic = self.key_to_topic(key)
         self.mqtt_conn.subscribe(topic)
@@ -135,10 +138,6 @@ class MqttNamespaceConnection(Connection):
                 time.sleep(1)
             except KeyboardInterrupt:
                 self.unsubscribe(key)
-
-    def read_async(self, key, **kwargs):
-        self.__generate_read_request__(key, True, **kwargs)
-        # This does not throw a timeout exception
 
     def subscribe_async(self, key, time_step=None):
         topic = self.key_to_topic(key)
@@ -159,7 +158,6 @@ class MqttNamespaceConnection(Connection):
         return kwargs
 
     def __on_new_mqtt_message__(self, topic, message):
-        # TODO: Start new thread for on_new_data if multithread. Remove this feature from mqtt service
         if topic.startswith("alv1/r"): return
 
         try:
