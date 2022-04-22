@@ -95,7 +95,6 @@ class Service:
         # Open features
         self.namespace_connection.open_async()
         self.connection.open_async()
-        time.sleep(1)  # Give it some time for features to open
 
         # Status change callbacks
         self.namespace_connection.on_connect = self.__on_status_change__
