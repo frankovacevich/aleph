@@ -22,5 +22,6 @@ class RandomConnection(Connection):
         return data
 
     def write(self, key, data):
-        print("Writing data on", key, ":")
-        print(data)
+        print("Writing data on", key)
+        time.sleep(self.delay)
+        print("Done (" + str(len(data)) + " datapoint written)")
