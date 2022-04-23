@@ -490,10 +490,13 @@ class Connection:
             # Flatten record
             record = flatten_dict(record)
 
-            # Check model
+            # Check model (pydantic model)
             if key in self.models:
-                record = self.models[key].validate(record)
-                if record is None: continue
+                model = self.models[key]
+                try:
+                    record = model.parse_raw(record).json()
+                except:
+                    continue
 
             # Check that record is not empty
             if not self.__check_record_is_not_empty__(record): continue
