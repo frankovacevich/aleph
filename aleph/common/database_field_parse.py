@@ -17,7 +17,6 @@ def db_parse_record_fields(record):
 
 
 def db_deparse_record_fields(record):
-    print(record)
     return {f: db_deparse_field(record[f]) for f in record}
 
 

@@ -52,6 +52,7 @@ class MqttService(Service):
             # Generate response
             response_topic = self.namespace_connection.key_to_topic(key, args["response_code"])
             response_data = self.on_read_request(key, **args)
+            if response_data is None: return
             response_message = self.namespace_connection.data_to_mqtt_message(response_data)
 
             # Publish response
