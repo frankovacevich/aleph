@@ -11,6 +11,7 @@ class FileHandler:
 
     def __init__(self, file, read_from_copy=False):
         self.file = file
+        if not os.path.isfile(file): raise FileNotFoundError("File '" + file + "' not found")
 
         # If true, the file will be copied to the temp_folder before reading (avoiding locking the file)
         self.read_from_copy = read_from_copy

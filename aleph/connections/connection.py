@@ -108,9 +108,108 @@ class Connection:
         return
 
     # ===================================================================================
-    # Safe Read and Safe Write functions
+    # Async Main functions
     # ===================================================================================
+    async def _open(self):
+        w = WaitOneStep(self.default_time_step)
 
+        s_prev = False
+        while True:
+            # Check status and try to reopen
+            s = self.is_connected()
+            if not s:
+                try:
+                    self.open()
+                    s = True
+                except:
+                    s = False
+
+            # Callbacks
+            if s and not s_prev: self.__on_connect__()
+            if not s and s_prev: self.__on_disconnect__()
+            s_prev = s
+
+            await w.async_wait()
+
+    async def _write(self, key, data):
+        self.write(key, data)
+
+    async def _read(self, key, **kwargs):
+        return self.read(key, **kwargs)
+
+    # ===================================================================================
+    # Async safe read / write
+    # ===================================================================================
+    async def _safe_read(self, key, **kwargs):
+        try:
+            # Check if connection is open
+            if not self.is_connected(): self.open()
+
+            # Clean arguments and read data
+            args = self.__clean_read_args__(key, **kwargs)
+
+            # Call read function
+            data = await self._read(key, **args)
+            if data is None: raise Exceptions.InvalidKey("Reading function returned None")
+
+            # Clean data
+            if not isinstance(data, list): data = [data]
+            if self.clean_on_read:
+                data = self.__clean_read_data__(key, data, **args)
+            elif "timezone" in args and args["timezone"] != "UTC":
+                for record in data:
+                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], args["timezone"])
+                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], args["timezone"])
+
+            # Return
+            return data
+
+        except Exception as e:
+            if self.force_close_on_read_error: self.close()
+            self.on_read_error(Error(e, client_id=self.client_id, key=key, kw_args=kwargs))
+            return None
+
+    async def _safe_write(self, key, data):
+        """
+        Executes the write function safely.
+        Returns a bool: True for success, False for failure
+        """
+        # Clean data
+        try:
+            # Make data a list
+            if not isinstance(data, list): data = [data]
+
+            # Clean data
+            if self.clean_on_write:
+                data = self.__clean_write_data__(key, data)
+                if len(data) == 0: return []
+
+        except Exception as e:
+            self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
+            return None
+
+        # Write data
+        try:
+            # Check that connection is open
+            if not self.is_connected(): self.open()
+
+            # Write
+            await self._write(key, data)
+
+            # If write is successful, flush store and forward buffer
+            if self.store_and_forward: self.__store_and_forward_flush_buffer__()
+
+            # Return cleaned data
+            return data
+
+        except Exception as e:
+            if self.store_and_forward: self.__store_and_forward_add_to_buffer__(key, data)
+            self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
+            return None
+
+    # ===================================================================================
+    # Safe read / write
+    # ===================================================================================
     def safe_read(self, key, **kwargs):
         try:
             # Check if connection is open
@@ -179,7 +278,7 @@ class Connection:
             return None
 
     # ===================================================================================
-    # On connect / disconnect event callbacks (use if overriding open_async)
+    # Aux
     # ===================================================================================
     def __on_connect__(self):
         # Flush store and forward buffer
@@ -195,10 +294,6 @@ class Connection:
     def __on_disconnect__(self):
         self.on_disconnect()
 
-    # ===================================================================================
-    # Async functions
-    # ===================================================================================
-
     def __run_on_async_thread__(self, coroutine):
         if self.__async_loop__ is None:
             logging.info("Starting async thread")
@@ -207,73 +302,34 @@ class Connection:
 
         asyncio.run_coroutine_threadsafe(coroutine, self.__async_loop__)
 
-    # Opening
+    # ===================================================================================
+    # Async functions
+    # ==================================================================================
+
     def open_async(self, time_step=None):
         """
         Executes the open function without blocking the main thread
         Calls is_connected on a loop and tries to reconnect if disconnected
         """
-        if time_step is None: time_step = self.default_time_step
-        self.__run_on_async_thread__(self.__open_async_aux__(time_step))
+        self.__run_on_async_thread__(self._open())
 
-    async def __open_async_aux__(self, time_step):
-        w = WaitOneStep(time_step)
-
-        s_prev = False
-        while True:
-            # Check status and try to reopen
-            s = self.is_connected()
-            if not s:
-                try:
-                    self.open()
-                    s = True
-                except:
-                    s = False
-
-            # Callbacks
-            if s and not s_prev: self.__on_connect__()
-            if not s and s_prev: self.__on_disconnect__()
-            s_prev = s
-
-            await w.async_wait()
-
-    # Writing
     def write_async(self, key, data):
         """
         Executes the safe_write function without blocking the main thread
         If the connection does not allow multithreading, we use the async thread
-        This is an antipattern because we would be blocking the async thread
-        with the safe_write function, but we need this to use the connection
-        in only one thread.
         """
         if self.multi_threaded:
             threading.Thread(target=self.safe_write, args=(key, data,), daemon=True).start()
         else:
-            self.__run_on_async_thread__(self.__write_async_aux__(key, data))
+            self.__run_on_async_thread__(self._safe_write(key, data))
 
-    async def __write_async_aux__(self, key, data):
-        self.safe_write(key, data)
-
-    # Reading
-    def read_async(self, key, **kwargs):
-        """
-        Executes the read function without blocking the main thread.
-        As with the write_async function, it will be executed on and block
-        the async thread if the connection does not support multithreading
-        """
-        self.__run_on_async_thread__(self.__read_async_aux__(key, **kwargs))
-
-    async def __read_async_aux__(self, key, **kwargs):
-        data = self.safe_read(key, **kwargs)
-        if data is None or len(data) == 0: return
-        self.on_new_data(key, data)
-
-    # Subscribing
     def subscribe_async(self, key, time_step=None):
         """
-        Executes the subscribe function without blocking the main thread.
+        Executes the read function on a loop, without blocking the main thread
         """
         if time_step is None: time_step = self.default_time_step
+        if key in self.__unsubscribe_flags__ and self.__unsubscribe_flags__[key]: return
+        self.__unsubscribe_flags__[key] = True
 
         if self.multi_threaded:
             logger.info("Creating subscribe_async thread for key %s", key)
@@ -283,22 +339,20 @@ class Connection:
             self.__run_on_async_thread__(self.__subscribe_async_aux__(key, time_step))
 
     async def __subscribe_async_aux__(self, key, time_step):
-        self.__unsubscribe_flags__[key] = True
         w = WaitOneStep(time_step)
 
         while True:
-            await w.async_wait()
-            if not self.__unsubscribe_flags__[key]: break
-            data = self.safe_read(key)
-            if data is None or len(data) == 0: continue
-            self.on_new_data(key, data)
+            try:
+                await w.async_wait()
+                if not self.__unsubscribe_flags__[key]: break
+                data = await self._safe_read(key)
+                if data is None or len(data) == 0: continue
+                self.on_new_data(key, data)
+            except:
+                self.unsubscribe(key)
+                raise
 
-    def subscribe(self, key, time_step=None):
-        """
-        Executes the read function on a loop, blocking the main thread
-        """
-        if time_step is None: time_step = self.default_time_step
-        self.__unsubscribe_flags__[key] = True
+    def __subscribe_aux__(self, key, time_step=None):
         w = WaitOneStep(time_step)
 
         while True:
@@ -308,9 +362,9 @@ class Connection:
                 data = self.safe_read(key)
                 if data is None or len(data) == 0: continue
                 self.on_new_data(key, data)
-            except KeyboardInterrupt:
-                self.__unsubscribe_flags__[key] = False
-                break
+            except:
+                self.unsubscribe(key)
+                raise
 
     def unsubscribe(self, key):
         self.__unsubscribe_flags__[key] = False
