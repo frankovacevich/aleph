@@ -153,13 +153,7 @@ class Connection:
             if data is None: raise Exceptions.InvalidKey("Reading function returned None")
 
             # Clean data
-            if not isinstance(data, list): data = [data]
-            if self.clean_on_read:
-                data = self.__clean_read_data__(key, data, **args)
-            elif "timezone" in args and args["timezone"] != "UTC":
-                for record in data:
-                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], args["timezone"])
-                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], args["timezone"])
+            data = self.__clean_read_data__(key, data, **args)
 
             # Return
             return data
@@ -223,13 +217,7 @@ class Connection:
             if data is None: raise Exceptions.InvalidKey("Reading function returned None")
 
             # Clean data
-            if not isinstance(data, list): data = [data]
-            if self.clean_on_read:
-                data = self.__clean_read_data__(key, data, **args)
-            elif "timezone" in args and args["timezone"] != "UTC":
-                for record in data:
-                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], args["timezone"])
-                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], args["timezone"])
+            data = self.__clean_read_data__(key, data, **args)
 
             # Return
             return data
@@ -469,11 +457,28 @@ class Connection:
         After reading data, make sure that:
         TODO: Complete comment
         """
+        if not isinstance(data, list): data = [data]
 
         # Get last time read
         last_times = self.local_storage.get(LocalStorage.LAST_TIME_READ, {})
         if key not in last_times:
             last_times[key] = kwargs["since"].timestamp() if kwargs["since"] is not None else None
+
+        # If not clean on read, still check timezone and last time read
+        if not self.clean_on_read:
+            for record in data:
+                # Check last time read
+                if last_times[key] is None or last_times[key] < record["t"].timestamp():
+                    last_times[key] = record["t"].timestamp()
+                # Check timezone
+                if "timezone" in kwargs and kwargs["timezone"] != "UTC":
+                    if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
+                    if "t_" in record: record["t_"] = parse_datetime_to_string(record["t_"], kwargs["timezone"])
+
+            # Update last time read
+            self.local_storage.set(LocalStorage.LAST_TIME_READ, last_times)
+
+            return data
 
         # For each record:
         cleaned_data = []
