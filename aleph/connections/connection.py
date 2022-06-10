@@ -176,7 +176,11 @@ class Connection:
             # Clean data
             if self.clean_on_write:
                 data = self.__clean_write_data__(key, data)
-                if len(data) == 0: return []
+            else:
+                for record in data:
+                    record["t"] = now(string=True)
+
+            if len(data) == 0: return []
 
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
@@ -240,7 +244,11 @@ class Connection:
             # Clean data
             if self.clean_on_write:
                 data = self.__clean_write_data__(key, data)
-                if len(data) == 0: return []
+            else:
+                for record in data:
+                    record["t"] = now(string=True)
+
+            if len(data) == 0: return []
 
         except Exception as e:
             self.on_write_error(Error(e, client_id=self.client_id, key=key, data=data))
@@ -468,8 +476,8 @@ class Connection:
         if not self.clean_on_read:
             for record in data:
                 # Check last time read
-                if last_times[key] is None or last_times[key] < record["t"].timestamp():
-                    last_times[key] = record["t"].timestamp()
+                # if last_times[key] is None or last_times[key] < record["t"].timestamp():
+                #     last_times[key] = record["t"].timestamp()
                 # Check timezone
                 if "timezone" in kwargs and kwargs["timezone"] != "UTC":
                     if "t" in record: record["t"] = parse_datetime_to_string(record["t"], kwargs["timezone"])
@@ -553,8 +561,9 @@ class Connection:
             if key in self.models:
                 model = self.models[key]
                 try:
-                    record = model.parse_raw(record).json()
+                    record = model.parse_obj(record).dict()
                 except:
+                    logger.error("Unable to parse record to model: " + str(record))
                     continue
 
             # Check that record is not empty
