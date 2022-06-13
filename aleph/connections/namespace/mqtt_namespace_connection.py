@@ -125,19 +125,7 @@ class MqttNamespaceConnection(Connection):
         self.mqtt_conn.loop_async()
 
     def write_async(self, key, data):
-        self.write(key, data)
-
-    def read_async(self, key, **kwargs):
-        self.__generate_read_request__(key, True, **kwargs)
-
-    def subscribe(self, key, time_step=None):
-        topic = self.key_to_topic(key)
-        self.mqtt_conn.subscribe(topic)
-        while topic in self.mqtt_conn.subscribe_topics:  # Block thread
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                self.unsubscribe(key)
+        self.safe_write(key, data)
 
     def subscribe_async(self, key, time_step=None):
         topic = self.key_to_topic(key)

@@ -13,6 +13,38 @@ logger = logging.getLogger(__name__)
 
 
 class Connection:
+    """
+    ##
+    open()
+    close()
+    read(key, **kwargs)
+    write(key, data)
+    is_connected()
+
+    ## derived methods
+    safe_read(key, **kwargs)
+    safe_write(key, data)
+
+    ## async methods
+    async _open()
+    async _read(key, **kwargs)
+    async _write(key, data)
+    async _safe_read(key, **kwargs)
+    async _safe_write(key, data)
+
+    ## async derived methods
+    open_async()
+    write_async(key, data)
+    subscribe_async(key)
+    unsubscribe(key)
+
+    ## callbacks
+    on_new_data(key, data)
+    on_read_error(error)
+    on_write_error(error)
+    on_connect()
+    on_disconnect()
+    """
 
     def __init__(self, client_id=""):
 
@@ -31,7 +63,7 @@ class Connection:
         self.store_and_forward = False                # Resends failed writes
         self.clean_on_write = True                    # Clean data when writing
         self.report_by_exception = False              # Only returns changing values (clean_on_write must be True)
-        self.report_by_exception_resend_after = None  # Seconds after which data reported by exception is resent
+        self.report_by_exception_resend_after = 3600  # Seconds after which data reported by exception is resent
 
         # Internal
         self.__unsubscribe_flags__ = {}
@@ -131,11 +163,11 @@ class Connection:
 
             await w.async_wait()
 
-    async def _write(self, key, data):
-        self.write(key, data)
-
     async def _read(self, key, **kwargs):
         return self.read(key, **kwargs)
+
+    async def _write(self, key, data):
+        self.write(key, data)
 
     # ===================================================================================
     # Async safe read / write
@@ -329,7 +361,7 @@ class Connection:
 
         if self.multi_threaded:
             logger.info("Creating subscribe_async thread for key %s", key)
-            threading.Thread(target=self.subscribe, args=(key, time_step,), daemon=True).start()
+            threading.Thread(target=self.__subscribe_aux__, args=(key, time_step,), daemon=True).start()
         else:
             logger.info("Adding subscribe_async coroutine for key %s", key)
             self.__run_on_async_thread__(self.__subscribe_async_aux__(key, time_step))
@@ -634,7 +666,8 @@ class Connection:
             # Check if we should resend regardless whether the value changed or not
             do_resend = False
             if self.report_by_exception_resend_after is not None:
-                if t - past_values[key][v][1] > self.report_by_exception_resend_after: do_resend = True
+                if v in past_values[key] and t - past_values[key][v][1] > self.report_by_exception_resend_after:
+                    do_resend = True
 
             # If new field, value changed, or should resend, store new value
             if v not in past_values[key] or past_values[key][v][0] != record[v] or do_resend:
