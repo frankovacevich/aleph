@@ -1,5 +1,8 @@
-from ..connection import Connection
+from aleph.common.datetime_functions import parse_datetime
+from aleph import Connection
+from dateutil.tz import tzlocal
 from zk import ZK
+import datetime
 
 
 class ZKTecoConnection(Connection):
@@ -74,7 +77,11 @@ class ZKTecoConnection(Connection):
     # ===================================================================================
     def write(self, key, data):
         if key == "time":
-            self.write_time()
+            if isinstance(data, list): data = data[0]
+            if "time" not in data: raise Exception("Missing field 'time' in data")
+            if data["time"] is None:
+                t = datetime.datetime.today()
+            else:
+                t = parse_datetime(data["time"]).astimezone(tzlocal()).replace(tzinfo=None)
 
-    def write_time(self, key, data):
-        pass
+            self.conn.set_time(t)

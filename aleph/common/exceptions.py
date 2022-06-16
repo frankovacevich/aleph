@@ -39,6 +39,3 @@ class Error:
 
     def __str__(self):
         return self.message_and_traceback()
-
-    @staticmethod
-    def connection_error(e): return Error(e)
